@@ -55,6 +55,15 @@ and in [`docs/audits/`](docs/audits/).
   included, before the rule against credentials in an address can refuse
   them. Found while closing COR-23-4; the parser's words are masked now,
   there and in the new `unparseable_reason`.
+- **`sanitize_text` closes the variation-selector channel.** It stripped the
+  tag block as "a documented injection vector" and kept the variation
+  selectors, which carry data as invisibly -- one byte per selector, all hung
+  on one visible character; measured, a message in them came through whole.
+  The supplement block (U+E0100–E01EF) goes, and of U+FE00–FE0F one selector
+  per character stays, counted on the result, so a zero-width joiner between
+  two no longer keeps both. An emoji keeps its text or emoji presentation; the
+  price is the glyph variant of a CJK ideograph, never the ideograph (audit
+  SEC-23-4).
 
 ### Fixed
 

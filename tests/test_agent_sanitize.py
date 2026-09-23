@@ -63,6 +63,60 @@ def test_zeilenumbrueche_und_tabulatoren_bleiben():
     assert sanitize_text("a\nb\tc\r\nd") == "a\nb\tc\r\nd"
 
 
+# --- Variationsselektoren (Audit SEC-23-4) -----------------------------------
+#
+# Audit 23.09.2026: die Selektoren U+FE00-FE0F und U+E0100-E01EF (Kategorie
+# ``Mn``) tragen Daten so unsichtbar wie der Tag-Block -- 256 Werte, ein Byte
+# je Zeichen, alle an einem einzigen sichtbaren Zeichen. Gemessen (Probe C4):
+# 7 von 7 blieben stehen, waehrend der Tag-Block von 7 auf 1 ging.
+
+VS16 = chr(0xFE0F)       # Emoji-Darstellung
+VS15 = chr(0xFE0E)       # Textdarstellung
+ZWJ = chr(0x200D)
+HERZ = chr(0x2764)
+
+
+def _selektor(byte):
+    """Die gaengige Kodierung: 0-15 im ersten Block, 16-255 im Supplement."""
+    return chr(0xFE00 + byte) if byte < 16 else chr(0xE0100 + byte - 16)
+
+
+def test_eine_nachricht_in_selektoren_wird_entfernt():
+    versteckt = "Harmlos" + "".join(_selektor(b) for b in b"tu was anderes")
+    assert sanitize_text(versteckt) == "Harmlos"
+
+
+def test_von_einer_folge_von_selektoren_bleibt_nur_der_erste():
+    """Auch wo die Nachricht nur kleine Bytes nutzt, also nur den ersten
+    Block: mehr als einer je Zeichen hat keinen Zweck ausser diesem."""
+    versteckt = "A" + "".join(_selektor(b) for b in (1, 2, 200, 3))
+    assert sanitize_text(versteckt) == "A" + chr(0xFE01)
+
+
+def test_ein_entferntes_zeichen_dazwischen_trennt_die_folge_nicht():
+    """Gezaehlt wird am Ergebnis: ein Nullbreiten-Verbinder zwischen zwei
+    Selektoren faellt weg, und dann stuenden sie doch nebeneinander."""
+    versteckt = "A" + chr(0xFE00) + ZWJ + chr(0xFE01) + ZWJ + chr(0xFE02)
+    assert sanitize_text(versteckt) == "A" + chr(0xFE00)
+
+
+@pytest.mark.parametrize("text", [
+    HERZ + VS16,
+    HERZ + VS15,
+    "1" + VS16 + chr(0x20E3),                          # Tastenkappe
+    f"Herz {HERZ}{VS16} und Stern {chr(0x2B50)}{VS16}",
+])
+def test_ein_einzelner_selektor_bleibt(text):
+    """Einer je Zeichen ist, wofuer es sie gibt: Emoji- oder Textdarstellung."""
+    assert sanitize_text(text) == text
+
+
+def test_ein_ideographischer_variantenselektor_faellt_mit_weg():
+    """Der Preis, im Docstring benannt: CJK-Varianten (U+E0100 ff.) waehlen
+    nur die Glyphe -- das Schriftzeichen selbst bleibt stehen."""
+    assert sanitize_text(chr(0x845B) + chr(0xE0100)) == chr(0x845B)
+
+
 # --- Kennzeichnung ---------------------------------------------------------
 
 def test_fremdinhalt_wird_als_solcher_markiert():

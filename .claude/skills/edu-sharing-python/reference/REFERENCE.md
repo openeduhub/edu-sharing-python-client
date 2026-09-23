@@ -1687,7 +1687,7 @@ bad.error             # "No node with id 'gibt-es-nicht'."   <- no stack trace
 
 | Call | Result |
 |---|---|
-| `sanitize_text(text)` | `str` — control and tag characters removed |
+| `sanitize_text(text)` | `str` — control and tag characters removed, and every variation selector but one per character from U+FE00–FE0F (an emoji keeps its presentation; a CJK ideograph loses its glyph variant, not itself) |
 | `one_line(text)` | `str` — collapsed to a single line |
 | `as_untrusted(text, label=…)` | `str` — wrapped and marked as data |
 | `UNTRUSTED_MARKER` | the marker used |

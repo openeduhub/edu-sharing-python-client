@@ -12,9 +12,10 @@ confidence.
 
 Two things do help:
 
-* **Strip invisible control characters.** Zero-width characters, bidi overrides
-  and the Unicode tag block (``U+E0000``-``U+E007F``, which encodes ASCII
-  invisibly) carry content nobody sees when reading.
+* **Strip invisible control characters.** Zero-width characters, bidi overrides,
+  the Unicode tag block (``U+E0000``-``U+E007F``, which encodes ASCII
+  invisibly) and runs of variation selectors carry content nobody sees when
+  reading.
 * **Mark the content** and make sure it cannot break out of its marking.
 
 The marking is not a wall but a clear statement to the model about where
@@ -40,12 +41,27 @@ _ALLOWED_CONTROLS = frozenset("\t\n\r")
 #: here because it is the actual point.
 _TAG_BLOCK = range(0xE0000, 0xE0080)
 
+#: Variation selectors carry data as invisibly: 256 values, one byte each, all
+#: hung on a single visible character -- and as ``Mn`` they passed the category
+#: rule below (audit SEC-23-4). The supplement goes whole. That costs CJK text
+#: its ideographic variation sequences, which pick a glyph variant; the
+#: ideograph itself stays, so nothing a model reads is lost.
+_SELECTOR_SUPPLEMENT = range(0xE0100, 0xE01F0)
+
+#: The first block stays, one per character: VS15 and VS16 choose text or emoji
+#: presentation, which is what a selector is for. A second one in a row has no
+#: purpose but the channel.
+_SELECTORS = range(0xFE00, 0xFE10)
+
 
 def sanitize_text(text: str | None) -> str:
     """Strip invisible control characters from foreign text.
 
     Line breaks and tabs survive -- they carry structure, and without them a
-    paragraph turns into gibberish.
+    paragraph turns into gibberish. Of the variation selectors one per
+    character survives, from the first block only: enough for an emoji's
+    presentation, too little for a hidden message. The price is the glyph
+    variant of a CJK ideograph, never the ideograph.
 
     Returns:
         The cleaned text; ``""`` for ``None``.
@@ -53,12 +69,19 @@ def sanitize_text(text: str | None) -> str:
     if not text:
         return ""
 
-    kept = []
+    kept: list[str] = []
     for c in text:
         if c in _ALLOWED_CONTROLS:
             kept.append(c)
             continue
-        if ord(c) in _TAG_BLOCK:
+        code = ord(c)
+        if code in _TAG_BLOCK or code in _SELECTOR_SUPPLEMENT:
+            continue
+        if code in _SELECTORS:
+            # Judged on what is kept, not on the input: a zero-width joiner
+            # between two selectors is dropped below, and they would meet.
+            if not (kept and ord(kept[-1]) in _SELECTORS):
+                kept.append(c)
             continue
         # Cc = control, Cf = format (zero-width, bidi overrides), Cs = surrogate.
         # All three are invisible and contribute nothing here.

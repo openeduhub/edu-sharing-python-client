@@ -1737,7 +1737,7 @@ bad.error             # "No node with id 'gibt-es-nicht'."   <- kein Stacktrace
 
 | Aufruf | Ergebnis |
 |---|---|
-| `sanitize_text(text)` | `str` — Steuer- und Tag-Zeichen entfernt |
+| `sanitize_text(text)` | `str` — Steuer- und Tag-Zeichen entfernt, dazu jeder Variationsselektor bis auf einen je Zeichen aus U+FE00–FE0F (ein Emoji behält seine Darstellung; ein CJK-Schriftzeichen verliert seine Glyphenvariante, nicht sich selbst) |
 | `one_line(text)` | `str` — auf eine Zeile gefaltet |
 | `as_untrusted(text, label=…)` | `str` — umschlossen und als Daten markiert |
 | `UNTRUSTED_MARKER` | die verwendete Markierung |

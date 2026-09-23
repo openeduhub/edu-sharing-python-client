@@ -27,6 +27,7 @@ import httpx
 import pytest
 
 from edusharing import AsyncRepository
+from edusharing.errors import SilentDropError
 from edusharing.suggestions import Suggestion
 
 REPO = "https://repo.test/edu-sharing"
@@ -259,7 +260,11 @@ async def test_eine_einzelne_id_als_zeichenkette_wird_verstanden():
 
 
 async def test_ein_nicht_angelegter_vorschlag_wird_gemeldet():
-    """Antwortet die Instanz 200 mit leerer Liste, ist nichts entstanden."""
+    """Antwortet die Instanz 200 mit leerer Liste, ist nichts entstanden -- ein
+    stiller Verlust, und dafuer hat diese Bibliothek ihren eigenen Typ. Bis zum
+    23.09.2026 kam er als ``ValueError`` und stand so in diesem Test:
+    ``except SilentDropError`` ging an ihm vorbei, und ``as_result`` reichte
+    ihn durch (Audit COR-23-2)."""
     class Taub(Instanz):
         def handler(self, request: httpx.Request) -> httpx.Response:
             if request.method == "POST" and "/suggestions/v1" in request.url.path:
@@ -270,8 +275,9 @@ async def test_ein_nicht_angelegter_vorschlag_wird_gemeldet():
     instanz = Taub()
     async with instanz.repo() as repo:
         knoten = await repo.node(NID)
-        with pytest.raises(ValueError, match="stored no proposal"):
+        with pytest.raises(SilentDropError, match="stored no proposal") as fehler:
             await knoten.suggestions.propose("ccm:taxonid", "Biologie", "Weil")
+    assert fehler.value.dropped == ["ccm:taxonid"]
 
 
 async def test_reprs_nennen_den_knoten():

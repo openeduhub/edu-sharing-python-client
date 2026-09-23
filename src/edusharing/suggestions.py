@@ -140,6 +140,8 @@ class Suggestions:
 
         Raises:
             ValueError: on an empty property, value or reason.
+            SilentDropError: when the repository answers 200 and stores no
+                proposal.
         """
         if not property or not property.strip():
             raise ValueError("A proposal needs a property to propose for.")
@@ -164,9 +166,13 @@ class Suggestions:
         )
         created = list(response or [])
         if not created:
-            raise ValueError(
+            # A 200 with nothing stored is what SilentDropError exists for; as a
+            # ValueError it slipped past `except SilentDropError` and out of
+            # as_result (audit COR-23-2).
+            raise SilentDropError(
                 f"The repository stored no proposal for {property!r} on node "
-                f"{self._node.id!r}, although it reported 200."
+                f"{self._node.id!r}, although it reported 200.",
+                dropped=[property], url=self._node.url,
             )
         return Suggestion.from_response(created[0])
 

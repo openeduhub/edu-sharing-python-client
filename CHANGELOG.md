@@ -62,6 +62,11 @@ and in [`docs/audits/`](docs/audits/).
   retry. Only text is read as a class name or a trace now, and a nested
   `message` becomes the error's message, as on the b-api side
   (audit COR-23-1).
+- **A proposal the repository did not store raises `SilentDropError`.**
+  `Suggestions.propose` reported a 200 with nothing created as a
+  `ValueError`, so `except SilentDropError` -- the pattern the reference
+  prints -- went past it, and `as_result` let it through. `dropped` names the
+  property (audit COR-23-2).
 
 ## [0.3.5] — 2026-09-21
 

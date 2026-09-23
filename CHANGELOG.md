@@ -226,8 +226,9 @@ and in [`docs/audits/`](docs/audits/).
   write -- written down, and the second case tested. And the `bapi` package
   docstring, which `help()` shows first, names `call_multipart` beside `call`
   and `call_bytes` (audit DOC-23-1).
-- **The same sentence stood in six more places.** The READMEs, the skill and
-  its traps said "every write reads back" too; each now says which writes do
+- **The same sentence stood in eight more places.** The READMEs, the skill
+  and its traps (two sections each) said "every write reads back" too, in both
+  languages; each now says which writes do
   -- property writes, and where the traps name them, permissions, relations
   and suggestions. The skill's error table gives `ValidationError` its 422
   and says it is also a `ValueError`, and CONTRIBUTING names the language

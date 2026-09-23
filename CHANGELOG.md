@@ -172,6 +172,19 @@ and in [`docs/audits/`](docs/audits/).
   `ruff` went 0.16.4 to 0.16.8 and four pinned GitHub Actions moved with it;
   the suite is 2 764 passed either way.
 
+### Tests
+
+- **Refusal paths at two trust boundaries now run.** The template client
+  never saw a `Retry-After` longer than it waits, a redirect, or `from_env`
+  with the address given as an argument; `Vocabulary.restore` had six of its
+  seven refusals untried, under a promise to reject malformed data "without
+  changing the cache". Each path has a test now, each test was seen to fail
+  with its refusal switched off, and the snapshot tests check the promise
+  itself: the cached entry is still served, with no new request. That an
+  argument outranks its variable in `BapiTemplates.from_env` -- so the key
+  goes where the caller pointed it -- is written down and tested as well
+  (audit TST-23-1).
+
 ## [0.3.5] — 2026-09-21
 
 **What was proven, and what was not.** `ruff check .` clean, `mypy` clean over

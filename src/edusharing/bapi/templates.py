@@ -167,6 +167,8 @@ class BapiTemplates:
         The same variables the rest of the library reads: ``B_API_KEY`` and
         ``B_API_BASE_URL`` like ``BildungsAPI``, ``EDU_SHARING_METADATASET``
         like ``Repository``. Whoever set up the proxy has set up this, too.
+        An argument outranks its variable: an address named on purpose is the
+        one the key goes to.
 
         Raises:
             EduSharingError: naming the variable that is missing.

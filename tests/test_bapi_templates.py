@@ -710,6 +710,60 @@ async def test_from_env_nimmt_das_metadatenset_auch_als_argument(umgebung):
         assert vorlagen.metadataset == "mds_x"
 
 
+async def test_from_env_nimmt_die_adresse_auch_als_argument(umgebung):
+    """Audit TST-23-1: der Zweig, in dem die Umgebung keine Adresse nennt und
+    das Argument sie traegt, lief nie."""
+    umgebung.delenv("B_API_BASE_URL")
+    async with BapiTemplates.from_env(base_url="https://anderes.example.test") as vorlagen:
+        assert vorlagen.base_url == "https://anderes.example.test"
+
+
+async def test_ein_argument_schlaegt_seine_variable(umgebung):
+    """Wer die Adresse ausdruecklich nennt, meint sie -- sonst ginge der
+    Schluessel an einen Host, den er gerade nicht gewaehlt hat."""
+    async with BapiTemplates.from_env(base_url="https://anderes.example.test",
+                                      metadataset="mds_x") as vorlagen:
+        assert vorlagen.base_url == "https://anderes.example.test"
+        assert vorlagen.metadataset == "mds_x"
+
+
+# --- Ablehnungen, die nie liefen (Audit TST-23-1, 23.09.2026) ----------------
+#
+# Der Proxy-Client deckte dieselben Wege ab, der Template-Client nicht.
+
+async def test_ein_zu_langes_retry_after_wird_nicht_abgewartet():
+    """Laenger als ``max_retry_after`` ist kein zweiter Versuch mehr, sondern
+    ein Aufhaenger: der Fehler geht mit der Zahl an den Aufrufer."""
+    from edusharing.errors import RateLimitedError
+    aufrufe = []
+
+    def handler(_request):
+        return httpx.Response(429, headers={"Retry-After": "3600"},
+                              json={"message": "slow down"})
+
+    async with _vorlagen(handler, aufrufe) as vorlagen:
+        with pytest.raises(RateLimitedError) as fehler:
+            await vorlagen.chat(["a"], context_node_id=KNOTEN)
+    assert fehler.value.retry_after == 3600.0
+    assert len(aufrufe) == 1
+
+
+async def test_eine_umleitung_wird_gemeldet_statt_ihr_zu_folgen():
+    """Wer umleitet, bekaeme sonst den ``X-API-KEY`` mitgeschickt."""
+    from edusharing.errors import EduSharingError
+    aufrufe = []
+
+    def handler(_request):
+        return httpx.Response(302, headers={"Location": "https://fremd.example.test/x"})
+
+    async with _vorlagen(handler, aufrufe) as vorlagen:
+        with pytest.raises(EduSharingError) as fehler:
+            await vorlagen.chat(["a"], context_node_id=KNOTEN)
+    assert fehler.value.status == 302
+    assert "fremd.example.test" in str(fehler.value)
+    assert len(aufrufe) == 1
+
+
 @pytest.mark.parametrize(("feld", "wert"), [("api_key", ""), ("metadataset", "")])
 def test_schluessel_und_metadatenset_sind_pflicht(feld, wert):
     from edusharing.errors import EduSharingError

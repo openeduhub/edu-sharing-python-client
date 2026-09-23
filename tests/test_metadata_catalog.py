@@ -3,6 +3,7 @@
 import asyncio
 import copy
 import json
+import time
 
 import httpx
 import pytest
@@ -128,6 +129,48 @@ async def test_malformed_snapshot_does_not_partially_fill_cache():
         with pytest.raises(ValidationError):
             repo.vocab.restore(snapshot, scope="public")
         assert repo.vocab.snapshot(scope="public")["entries"] == []
+
+
+#: One way to break a snapshot per refusal in ``vocab_snapshots``.
+_BREAKAGES = {
+    "entries not a list": lambda s: s.update(entries={"acme:subject": s["entries"][0]}),
+    "a duplicate entry": lambda s: s["entries"].append(copy.deepcopy(s["entries"][0])),
+    "an entry not an object": lambda s: s["entries"].append("acme:subject"),
+    "an empty property": lambda s: s["entries"][0].update(property=" "),
+    "a locale not text": lambda s: s["entries"][0].update(locale=7),
+    "loaded_at in the future": lambda s: s["entries"][0].update(loaded_at=time.time() + 3600),
+    "loaded_at a flag": lambda s: s["entries"][0].update(loaded_at=True),
+    "loaded_at not finite": lambda s: s["entries"][0].update(loaded_at=float("nan")),
+    "values not a list": lambda s: s["entries"][0].update(values="Space"),
+}
+
+
+@pytest.mark.parametrize("breakage", sorted(_BREAKAGES))
+async def test_every_refusal_of_restore_leaves_the_cache_as_it_was(breakage):
+    """Audit TST-23-1 (2026-09-23): six of the seven refusals of ``restore``
+    had never run, and its promise is "rejects ... malformed data without
+    changing the cache". The fresh entry is still served, with no new call."""
+    backend = Backend()
+    async with backend.repo() as repo:
+        await repo.vocab.values("acme:subject")
+        snapshot = repo.vocab.snapshot(scope="public")
+        _BREAKAGES[breakage](snapshot)
+        with pytest.raises(ValidationError):
+            repo.vocab.restore(snapshot, scope="public")
+        assert len(await repo.vocab.values("acme:subject")) == 1
+        assert len(backend.calls) == 1
+
+
+@pytest.mark.parametrize("scope", ["", "  ", None])
+async def test_a_snapshot_names_its_scope(scope):
+    """The scope says who may see the values -- a snapshot taken as a signed-in
+    user must not be restored as a public one."""
+    backend = Backend()
+    async with backend.repo() as repo:
+        with pytest.raises(ValidationError, match="scope"):
+            repo.vocab.snapshot(scope=scope)
+        with pytest.raises(ValidationError, match="scope"):
+            repo.vocab.restore({"version": 1}, scope=scope)
 
 
 def test_catalog_and_preload_are_synchronous_through_repository():

@@ -258,7 +258,6 @@ def test_page_cut_ist_wahr_genau_wenn_es_mehr_gibt(form):
         assert ist is (bestand > limit), (form, bestand, geliefert, ist)
 
 
-
 def _definierte(name: str) -> list[str]:
     """Jede Datei, die eine Funktion dieses Namens selbst definiert."""
     gefunden = []

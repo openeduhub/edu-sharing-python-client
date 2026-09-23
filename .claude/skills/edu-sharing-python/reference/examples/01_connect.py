@@ -35,7 +35,6 @@ PASSWORD = os.environ.get("EDU_SHARING_PASSWORD", "")
 LOGIN = (USER, PASSWORD) if USER else None
 
 
-
 def show_instance(repo: Repository) -> None:
     """What kind of instance is this?
 

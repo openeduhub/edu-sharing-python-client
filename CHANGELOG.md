@@ -196,6 +196,10 @@ and in [`docs/audits/`](docs/audits/).
   regenerates and diffs them would fail if the tool moved without them.
   `ruff` went 0.16.4 to 0.16.8 and four pinned GitHub Actions moved with it;
   the suite is 2 764 passed either way.
+- The blank-line rules E301-E306 are on. They are preview rules in ruff 0.16,
+  so selecting "E" never included them, and four slips in `src/` stood
+  unnoticed; switched on, they found 25 across the repository, all fixed,
+  whitespace only. `explicit-preview-rules` keeps preview to those six codes.
 
 ### Documentation
 

@@ -299,6 +299,7 @@ VERZEICHNISSE = {
                     / "TRAPS.de.md"),
 }
 
+
 #: Die Ankerregel von GitHub: klein, Satzzeichen und Backticks fallen weg,
 #: **jedes** Leerzeichen wird ein Bindestrich. Wer sie zusammenfasst, meldet
 #: jede Ueberschrift mit Gedankenstrich als toten Verweis (gemessen am

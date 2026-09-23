@@ -33,7 +33,6 @@ PASSWORD = os.environ.get("EDU_SHARING_PASSWORD", "")
 LOGIN = (USER, PASSWORD) if USER else None
 
 
-
 def show_metadatasets(repo: Repository) -> None:
     """Which metadata sets exist at all?
 

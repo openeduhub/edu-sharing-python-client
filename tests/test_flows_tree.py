@@ -121,6 +121,7 @@ async def test_stats_count_equal_display_labels_once_per_record():
     assert got["sampled"] == 1
     assert got["by"]["subject"]["Physik"] == 1
 
+
 async def test_der_baum_kommt_verschachtelt():
     instanz = Instanz()
     async with instanz.repo() as repo:

@@ -16,6 +16,7 @@ from edusharing.agent.sanitize import as_untrusted, sanitize_text
 
 # --- Was erhalten bleibt ---------------------------------------------------
 
+
 @pytest.mark.parametrize("text", [
     "Ein ganz normaler Titel",
     "Mit Umlauten: Größe, Übung, Straße",

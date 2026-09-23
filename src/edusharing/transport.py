@@ -76,6 +76,8 @@ _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 # Failures from before anything went over the wire: nothing happened on the
 # server, so any method may try again.
 _BEFORE_SENDING = (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout)
+
+
 def _repeatable(method: str, idempotent: bool | None) -> bool:
     """Whether a second attempt is safe once the first may have arrived.
 

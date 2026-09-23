@@ -89,7 +89,6 @@ class MetadataProfile:
         return targets[0]
 
 
-
 def read_values(properties: Mapping[str, Any], fields: Sequence[str]) -> list[str]:
     """Read the first populated property without sharing mutable values."""
     for prop in fields:

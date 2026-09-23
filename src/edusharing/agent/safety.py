@@ -25,6 +25,7 @@ from ..urls import mask_userinfo, unsafe_url_reason
 
 __all__ = ["UnsafeUrlError", "is_safe_url", "check_url"]
 
+
 class UnsafeUrlError(EduSharingError):
     """The URL must not be fetched."""
 

@@ -134,7 +134,6 @@ class Instanz:
             client=httpx.AsyncClient(transport=httpx.MockTransport(self.handler)))
 
 
-
 # --- F09 (Fremdpruefung 09.09.2026): die Variante hinter dem Deckel --------
 #
 # ``_read`` las einmalig hoechstens 50 Kinder. Lag die konfigurierte

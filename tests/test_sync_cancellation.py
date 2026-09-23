@@ -42,6 +42,7 @@ def test_interrupted_wait_cancels_a_write_before_it_can_be_sent(monkeypatch):
                 loop.run(queued_write())
         # The loop processes cancellation before this barrier releases the
         # semaphore-equivalent wait. No real signal or timing race is needed.
+
         async def open_gate():
             await asyncio.sleep(0)
             release.set()

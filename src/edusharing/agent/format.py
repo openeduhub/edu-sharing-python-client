@@ -32,6 +32,7 @@ DEFAULT_HIT_CHARS = 400
 #: Character budget for a whole result list.
 DEFAULT_RESULT_CHARS = 4000
 
+
 def format_hit(
     hit: SearchHit,
     *,

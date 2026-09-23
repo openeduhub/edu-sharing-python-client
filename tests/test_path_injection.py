@@ -31,6 +31,7 @@ ANGRIFFE = [
     "a b",
 ]
 
+
 def _node(node_id: str) -> dict:
     return {"node": {"ref": {"id": node_id}, "name": "n", "type": "ccm:io",
                      "access": ["Read"], "properties": {},

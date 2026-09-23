@@ -13,6 +13,7 @@ from edusharing.errors import ValidationError
 
 # --- Request-Bau -----------------------------------------------------------
 
+
 def test_normales_modell_bekommt_max_tokens():
     body = build_body("glm-4.7", [{"role": "user", "content": "hi"}], max_tokens=100)
     assert body["max_tokens"] == 100

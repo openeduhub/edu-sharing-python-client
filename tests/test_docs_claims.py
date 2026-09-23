@@ -40,6 +40,8 @@ _ZEILE = re.compile(r"^\|(.+?)\|(.+)\|\s*$", re.M)
 #: Der Klassenname, entweder allein in Spalte 1 oder am Anfang von Spalte 2.
 _KLASSE = re.compile(r"^\s*`([A-Z][A-Za-z0-9_]*)`")
 _FELD = re.compile(r"`([a-z_][a-z0-9_]*)`")
+
+
 def _hat(klasse: type, feld: str) -> bool:
     """Ob die Klasse dieses Feld wirklich hat -- auch geerbt.
 
@@ -108,6 +110,8 @@ def test_jedes_genannte_feld_gibt_es_wirklich():
                     falsch.append(f"{datei}: {name}.{feld} gibt es nicht")
 
     assert not falsch, "\n  " + "\n  ".join(falsch)
+
+
 # --- Und stimmen die Variablennamen? --------------------------------------
 #
 # ``TEXT_EXTRACTION_URL`` stand in der Referenz und im Skill; die Variable
@@ -120,6 +124,7 @@ def test_jedes_genannte_feld_gibt_es_wirklich():
 _UMGEBUNG = re.compile(
     r"`((?:EDU_SHARING|B_API|METADATA_AGENT)_[A-Z0-9_]+"
     r"|[A-Z][A-Z0-9_]*_(?:URL|KEY|TOKEN|PASSWORD))`")
+
 
 #: Jede Datei, die Namen behauptet. Der Skill gehoert dazu: er nennt sie in
 #: einer Tabelle, und ein Skill mit falschen Namen ist schlimmer als keiner.
@@ -189,6 +194,8 @@ def test_jedes_beispiel_liest_nur_variablen_die_es_gibt():
     assert not erfunden, (
         f"{len(erfunden)} Lesevorgaenge auf Variablen, die die Bibliothek nicht "
         "kennt:\n  " + "\n  ".join(erfunden))
+
+
 # --- Und zeigen die Verweise irgendwohin? ---------------------------------
 
 #: Jede Datei mit Verweisen, die stimmen muessen. Die Audits stehen nicht
@@ -225,6 +232,7 @@ def test_jeder_verweis_zeigt_auf_eine_datei_die_es_gibt():
 # Knoten liegt nirgends" statt "Sie duerfen nicht sehen, wo er liegt". Am
 # 31.08.2026 ist genau das einem Pruefskript passiert, das die Bibliothek
 # benutzen sollte.
+
 
 ABLAEUFE = WURZEL / "src" / "edusharing" / "flows"
 _VERSPROCHEN = re.compile(r"``\{([a-z_,\s]+)\}``")
@@ -307,6 +315,7 @@ def test_der_waechter_liest_auch_einen_umgebrochenen_code_span():
 # Positionelle Argumente werden nach Name UND Reihenfolge geprueft, denn ein
 # Leser schreibt sie irgendwann als Schluesselwort. Schluesselwortargumente
 # duerfen alles sein, wenn die Methode ``**kwargs`` hat.
+
 
 _AUFRUF = re.compile(r"repo\.((?:flows\.)?[a-z_]+)\(")
 _BEZEICHNER = re.compile(r"[a-z_][a-z_0-9]*")
@@ -474,6 +483,7 @@ def test_jeder_dokumentierte_repository_aufruf_nennt_echte_parameter():
 # so kam es durch. Dieselbe Pruefung fuer jede Zeile `name(a, b=...)`, deren
 # Name eine oeffentliche freie Funktion ist: positionelle Argumente nach Name
 # und Reihenfolge, Schluesselwoerter gegen die Parameterliste.
+
 
 _FREIER_AUFRUF = re.compile(r"`([a-z_][a-z_0-9]*)\(([^`)]*)\)`")
 

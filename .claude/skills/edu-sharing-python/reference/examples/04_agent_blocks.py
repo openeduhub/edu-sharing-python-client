@@ -50,7 +50,6 @@ B_API = os.environ.get("B_API_BASE_URL", "https://b-api.staging.openeduhub.net")
 B_API_KEY = os.environ.get("B_API_KEY", "")
 
 
-
 async def search_as_tool_result(repo: AsyncRepository, topic: str) -> ToolResult:
     """Search as a tool result, so a failure becomes information.
 

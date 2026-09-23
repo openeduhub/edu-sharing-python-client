@@ -1177,7 +1177,9 @@ and not because the gateway refuses: measured 2026-09-21,
 sends the file and the form fields together. `field=` names the part, because
 the route decides what it is called — `file` for the audio routes and for
 `files`, `image` for `images/edits`. The bytes are held in memory and sent in
-one body.
+one body. `content_type`, when given, must be a plain `type/subtype` — the same
+rule as a node's `mimetype`, because httpx writes it into the part's header
+unescaped; anything else is a `ValidationError` before anything is sent.
 
 Two measurements worth knowing before you use it. The gateway prices only part
 of what it lists: `gpt-4o-mini-tts` and `gpt-4o-mini-transcribe` are served,

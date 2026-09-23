@@ -588,3 +588,22 @@ async def test_eine_unsichere_route_wird_auch_hier_abgelehnt():
         with pytest.raises(ValidationError):
             await api.call_multipart("../secrets", {}, file=b"x",
                                      filename="a.txt", provider="openai")
+
+
+@pytest.mark.parametrize("inhaltstyp", [
+    "audio/mpeg\r\nX-Injected: yes", "audio/mpeg\n", "audio/mpeg; charset=utf-8", "",
+])
+async def test_ein_inhaltstyp_der_eine_kopfzeile_faelscht_wird_abgelehnt(inhaltstyp):
+    """Audit SEC-23-3 (23.09.2026): httpx schreibt den Inhaltstyp eines
+    Multipart-Teils unmaskiert in dessen Kopf (SEC-7, gemessen 08.09.2026).
+    ``content.upload`` prueft ihn seitdem, ``call_multipart`` vom 21.09. nicht:
+    gemessen, ``"audio/mpeg\\r\\nX-Injected: yes"`` schrieb eine eigene Zeile in
+    den Koerper. Abgelehnt wird, bevor etwas gesendet ist -- und die Meldung
+    nennt das Argument so, wie der Aufrufer es geschrieben hat."""
+    aufrufe = []
+    async with _client(_antwortet({"text": "x"}), aufrufe) as api:
+        with pytest.raises(ValidationError, match="content_type"):
+            await api.call_multipart("audio/transcriptions", {"model": "m"},
+                                     file=b"x", filename="a.mp3",
+                                     content_type=inhaltstyp, provider="openai")
+    assert aufrufe == []

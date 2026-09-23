@@ -1209,7 +1209,10 @@ gemessen am 21.09.2026 antwortet `audio/transcriptions` mit
 schickt Datei und Formularfelder zusammen. `field=` benennt den Teil, denn die
 Route entscheidet, wie er heißt — `file` bei den Audio-Routen und bei `files`,
 `image` bei `images/edits`. Die Bytes liegen dabei im Speicher und gehen in
-einem Körper hinaus.
+einem Körper hinaus. `content_type` muss, wenn angegeben, ein schlichtes
+`type/subtype` sein — dieselbe Regel wie für den `mimetype` eines Knotens, weil
+httpx ihn unmaskiert in den Kopf des Teils schreibt; alles andere ist ein
+`ValidationError`, bevor etwas gesendet ist.
 
 Zwei Messungen, die man vorher kennen sollte. Das Gateway rechnet nur einen
 Teil dessen ab, was es führt: `gpt-4o-mini-tts` und `gpt-4o-mini-transcribe`

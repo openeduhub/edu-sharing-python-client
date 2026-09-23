@@ -47,6 +47,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from .._checks import check_mimetype
 from ..errors import EduSharingError, ValidationError, whole_number
 from ..urls import path_segment
 from . import choice
@@ -409,9 +410,15 @@ async def call_multipart(
             second upload.
 
     Raises:
-        ValidationError: the route cannot be addressed safely.
+        ValidationError: the route cannot be addressed safely, or
+            ``content_type`` is not a plain ``type/subtype``.
         EduSharingError: the gateway refuses the request.
     """
+    # httpx writes the part's content type into its header unescaped; the
+    # check ``content.upload`` has made since SEC-7 was missing here, and a
+    # CR/LF wrote a header line of its own (audit SEC-23-3).
+    if content_type is not None:
+        check_mimetype(content_type, name="content_type")
     teil: tuple[str, bytes] | tuple[str, bytes, str] = (
         (filename, file) if content_type is None
         else (filename, file, content_type))

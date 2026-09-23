@@ -39,7 +39,7 @@ _MIMETYPE = re.compile(r"^[A-Za-z0-9!#$%&'*+.^_`|~-]+/[A-Za-z0-9!#$%&'*+.^_`|~-]
 _LOCALE = re.compile(r"[A-Za-z]{2,3}(?:[_-][A-Za-z0-9]{2,8})?")
 
 
-def check_mimetype(mimetype: str) -> None:
+def check_mimetype(mimetype: str, *, name: str = "mimetype") -> None:
     """Refuse a ``mimetype`` that would write more than its own header.
 
     It goes into two places: the query parameter, and the ``Content-Type`` of
@@ -48,17 +48,21 @@ def check_mimetype(mimetype: str) -> None:
     ``\r\n`` in it produces a second header line (audit SEC-7). What a server
     makes of that is its business; this library must not write it.
 
+    Args:
+        name: the argument as the caller wrote it -- ``mimetype`` for a node's
+            content, ``content_type`` for ``BildungsAPI.call_multipart``.
+
     Raises:
-        ValidationError: when it is missing or is not ``type/subtype``.
+        ValidationError: when it is empty or is not ``type/subtype``.
     """
     if not mimetype:
         raise ValidationError(
-            "mimetype is mandatory on upload (e.g. 'application/pdf' or "
-            "'text/plain')."
+            f"{name} must not be empty -- a type/subtype such as "
+            "'application/pdf' or 'text/plain' is expected."
         )
     if not _MIMETYPE.fullmatch(mimetype):
         raise ValidationError(
-            f"mimetype must be a plain type/subtype, not {mimetype!r}. "
+            f"{name} must be a plain type/subtype, not {mimetype!r}. "
             "Parameters such as '; charset=utf-8' do not belong here -- the "
             "same value goes to the repository as a classification -- and "
             "anything outside a token would be written into a header line "

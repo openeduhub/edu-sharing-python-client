@@ -52,6 +52,14 @@ and in [`docs/audits/`](docs/audits/).
   names -- which under an agent the model chooses -- are now flattened, and
   the title is capped like the values (audit SEC-23-2, the class A1 closed in
   `format`).
+- **`call_multipart` checks `content_type` as a node upload checks its
+  `mimetype`.** httpx writes a multipart part's content type unescaped, and
+  `"audio/mpeg\r\nX-Injected: yes"` wrote a header line of its own -- the
+  class SEC-7 closed for `content.upload` in September, missing from the
+  method added on 2026-09-21. Refused as a `ValidationError` that names
+  `content_type`, before anything is sent (audit SEC-23-3). The rule itself
+  now lives in `_checks`, beside the locale rule, where the next module that
+  needs either finds it (audit ARC-23-1).
 
 ### Fixed
 

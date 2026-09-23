@@ -799,6 +799,16 @@ async def test_ohne_probe_und_ohne_umleitung_wird_nicht_gelesen():
     assert neu is node and len(server.pfade("GET")) == 1
 
 
+async def test_ohne_etwas_zu_schreiben_bleibt_es_derselbe_knoten():
+    """Der Returns-Abschnitt sagt es seit dem Audit DOC-23-1 (23.09.2026):
+    nichts zu schreiben heisst kein PUT, kein Lesen, derselbe Knoten."""
+    server = ZweiKnoten()
+    node = await _nodes(server).get(ORIG)
+    neu = await node.update()
+    assert neu is node
+    assert server.pfade("PUT") == [] and len(server.pfade("GET")) == 1
+
+
 async def test_ein_fehler_des_originals_nennt_die_umleitung():
     """Der Aufrufer hatte die ID der Referenz; ein 403 des Originals nennt eine
     URL, die er nie benutzt hat. Die Notiz stellt den Zusammenhang her."""

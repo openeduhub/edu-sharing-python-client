@@ -197,6 +197,26 @@ and in [`docs/audits/`](docs/audits/).
   `ruff` went 0.16.4 to 0.16.8 and four pinned GitHub Actions moved with it;
   the suite is 2 764 passed either way.
 
+### Documentation
+
+- **The ACL write window is stated.** `grant` reads the ACL, merges and posts
+  a list that replaces the whole local ACL, and `revoke` trims and posts the
+  same way: two calls on one node at the same time can each write their list
+  without the other's entry, and edu-sharing offers no version check to close
+  it. `add_keywords` said so for keywords; the two docstrings and their
+  reference rows say it now for permissions, `publish` and `unpublish`
+  included (audit COR-23-6).
+- **Three statements now match the code.** The reference said "every write
+  in this library reads back"; `repo.add_to_collection` cannot (a fresh
+  reference is not listed yet), and `repo.create_collection`,
+  `repo.remove_from_collection` and the four writes in `people` do not. The
+  sentence says where it holds now, and those rows and docstrings say "not
+  read back". `Node.update` promised "a new `Node` carrying the read-back
+  state" and returns the node itself with `verify=False` or with nothing to
+  write -- written down, and the second case tested. And the `bapi` package
+  docstring, which `help()` shows first, names `call_multipart` beside `call`
+  and `call_bytes` (audit DOC-23-1).
+
 ### Tests
 
 - **Refusal paths at two trust boundaries now run.** The template client

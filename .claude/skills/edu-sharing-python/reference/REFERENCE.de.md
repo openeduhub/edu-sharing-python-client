@@ -495,13 +495,13 @@ zurück.
 |---|---|
 | `repo.find_collections(text, limit=…, locale=…)` | `SearchResult` |
 | `repo.collections.find(text, limit=…, locale=…)` | dasselbe |
-| `repo.create_collection(title, parent=…, scope=…, description=…)` | `Node` |
+| `repo.create_collection(title, parent=…, scope=…, description=…)` | `Node` — wie die Antwort ihn beschreibt; nicht zurückgelesen |
 | `repo.collections.create(...)` | dasselbe |
 | `repo.collections.update(id, title=…, description=…)` | `Node` |
 | `repo.update_collection(collection_id, ...)` | dasselbe, blockierend |
-| `repo.add_to_collection(collection_id, node_id)` | `bool` — `False`, wenn es schon drin war |
+| `repo.add_to_collection(collection_id, node_id)` | `bool` — `False`, wenn es schon drin war; nicht zurückgelesen, da eine frische Referenz noch nicht gelistet ist |
 | `repo.collections.add(...)` | dasselbe |
-| `repo.remove_from_collection(collection_id, node_id)` | `None` — das Material selbst bleibt |
+| `repo.remove_from_collection(collection_id, node_id)` | `None` — das Material selbst bleibt; nicht zurückgelesen |
 | `repo.collections.remove(...)` | dasselbe |
 
 ```python
@@ -566,8 +566,8 @@ comment.text               # "Passt zu Klasse 6."
 |---|---|
 | `node.permissions.get()` | `Permissions` |
 | `Permissions` | `effective`, `inherited`, `inherits`, `is_public`, `own` |
-| `node.permissions.grant(authority, "Read", authority_type=…)` | `bool` — `SilentDropError`, wenn die zurückgelesene ACL nicht die gesendete ist: das neue Recht nicht gespeichert, ein Recht derselben Autorität weggenommen, ein unberührter Eintrag weg, oder die Vererbung gekippt. Der POST ersetzt die ganze lokale Liste, ein Grant kann also verlieren, was er nicht angefasst hat |
-| `node.permissions.revoke(authority, "Read")` | `bool` — `SilentDropError`, wenn die zurückgelesene ACL nicht die gesendete ist: das Recht noch da, ein unberührter Eintrag weg, oder die Vererbung gekippt |
+| `node.permissions.grant(authority, "Read", authority_type=…)` | `bool` — `SilentDropError`, wenn die zurückgelesene ACL nicht die gesendete ist: das neue Recht nicht gespeichert, ein Recht derselben Autorität weggenommen, ein unberührter Eintrag weg, oder die Vererbung gekippt. Der POST ersetzt die ganze lokale Liste, ein Grant kann also verlieren, was er nicht angefasst hat — und zwei Grants auf einem Knoten zur selben Zeit können beide ihre Liste ohne den Eintrag des anderen schreiben: edu-sharing hat keine Versionsprüfung, die dieses Fenster schließt |
+| `node.permissions.revoke(authority, "Read")` | `bool` — `SilentDropError`, wenn die zurückgelesene ACL nicht die gesendete ist: das Recht noch da, ein unberührter Eintrag weg, oder die Vererbung gekippt. Dasselbe Fenster wie bei `grant` |
 | `node.permissions.publish()` | `bool` — `True`: jetzt veröffentlicht; `False`: bereits öffentlich. Beide bedeuten Erfolg |
 | `node.permissions.unpublish()` | `bool` — `ConflictError`, wenn der Knoten öffentlich bliebe, weil sein Elternteil es ist. Zweimal gefragt: vor dem Schreiben (dann wird nichts geschrieben) und an der danach zurückgelesenen ACL, weil ein Elternteil dazwischen veröffentlicht werden kann |
 | `perms.effective` | `tuple[Ace, ...]` |
@@ -1797,8 +1797,12 @@ except EduSharingError as exc:
 ```
 
 `SilentDropError` ist der, den man kennen sollte. edu-sharing antwortet mit
-HTTP 200 auf Schreibvorgänge, die es nicht ausgeführt hat; jeder Schreibvorgang
-dieser Bibliothek liest zurück und wirft ihn, statt Erfolg zu melden.
+HTTP 200 auf Schreibvorgänge, die es nicht ausgeführt hat; wo diese Bibliothek
+einen Schreibvorgang zurückliest, wirft sie `SilentDropError`, statt Erfolg zu
+melden. Nicht jeder wird zurückgelesen. Darunter: `repo.add_to_collection`, das
+es nicht kann -- eine frische Referenz ist noch nicht gelistet, gemessen --,
+`repo.create_collection`, `repo.remove_from_collection` und die vier
+Schreibvorgänge in `people`.
 
 | Helfer | Tut |
 |---|---|

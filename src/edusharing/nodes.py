@@ -345,6 +345,10 @@ class Node:
             by the MCP on 2026-08-17). The read-back cannot catch that -- it
             re-reads the same node -- so the write goes to the original instead.
 
+            With ``verify=False`` on a node that is not a reference -- and
+            whenever there is nothing to write -- it is the node this was
+            called on, unchanged: nothing was read back (audit DOC-23-1).
+
         Raises:
             SilentDropError: when the repository reports 200 and values are
                 missing afterwards.

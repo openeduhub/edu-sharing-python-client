@@ -479,13 +479,13 @@ field that means it. For a write that must preserve a title, use
 |---|---|
 | `repo.find_collections(text, limit=…, locale=…)` | `SearchResult` |
 | `repo.collections.find(text, limit=…, locale=…)` | the same |
-| `repo.create_collection(title, parent=…, scope=…, description=…)` | `Node` |
+| `repo.create_collection(title, parent=…, scope=…, description=…)` | `Node` — as the answer describes it; not read back |
 | `repo.collections.create(...)` | the same |
 | `repo.collections.update(id, title=…, description=…)` | `Node` |
 | `repo.update_collection(collection_id, ...)` | the same, blocking |
-| `repo.add_to_collection(collection_id, node_id)` | `bool` — `False` when it was already in |
+| `repo.add_to_collection(collection_id, node_id)` | `bool` — `False` when it was already in; not read back, since a fresh reference is not listed yet |
 | `repo.collections.add(...)` | the same |
-| `repo.remove_from_collection(collection_id, node_id)` | `None` — the material itself stays |
+| `repo.remove_from_collection(collection_id, node_id)` | `None` — the material itself stays; not read back |
 | `repo.collections.remove(...)` | the same |
 
 ```python
@@ -549,8 +549,8 @@ comment.text               # "Passt zu Klasse 6."
 |---|---|
 | `node.permissions.get()` | `Permissions` |
 | `Permissions` | `effective`, `inherited`, `inherits`, `is_public`, `own` |
-| `node.permissions.grant(authority, "Read", authority_type=…)` | `bool` — `SilentDropError` when the ACL that comes back is not the one that was sent: the new permission not stored, one this authority already held taken away, an untouched entry gone, or inheritance flipped. The POST replaces the whole local list, so a grant can lose what it did not touch |
-| `node.permissions.revoke(authority, "Read")` | `bool` — `SilentDropError` when the ACL that comes back is not the one that was sent: the permission still held, an untouched entry gone, or inheritance flipped |
+| `node.permissions.grant(authority, "Read", authority_type=…)` | `bool` — `SilentDropError` when the ACL that comes back is not the one that was sent: the new permission not stored, one this authority already held taken away, an untouched entry gone, or inheritance flipped. The POST replaces the whole local list, so a grant can lose what it did not touch — and two grants on one node at the same time can each write theirs without the other's entry: edu-sharing has no version check to close that window |
+| `node.permissions.revoke(authority, "Read")` | `bool` — `SilentDropError` when the ACL that comes back is not the one that was sent: the permission still held, an untouched entry gone, or inheritance flipped. The same window as `grant` |
 | `node.permissions.publish()` | `bool` — `True`: published now; `False`: already public. Both mean success |
 | `node.permissions.unpublish()` | `bool` — `ConflictError` when the node would stay public because its parent is. Asked twice: before the write (nothing is written then) and of the ACL read back after it, because a parent can be published in between |
 | `perms.effective` | `tuple[Ace, ...]` |
@@ -1753,8 +1753,11 @@ except EduSharingError as exc:
 ```
 
 `SilentDropError` is the one worth knowing. edu-sharing answers HTTP 200 for
-writes it did not perform; every write in this library reads back and raises it
-rather than reporting success.
+writes it did not perform; where this library reads a write back, it raises
+`SilentDropError` rather than reporting success. Not every write is read back.
+Among those that are not: `repo.add_to_collection`, which cannot be -- a fresh
+reference is not listed yet, measured --, `repo.create_collection`,
+`repo.remove_from_collection`, and the four writes in `people`.
 
 | Helper | Does |
 |---|---|

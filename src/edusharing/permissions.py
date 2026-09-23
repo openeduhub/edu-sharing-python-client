@@ -252,6 +252,15 @@ class NodePermissions:
                 account exists or not, so this check cannot catch a mistyped
                 one.
             ValidationError: when no permission is named.
+
+        Note:
+            There is a window between reading the ACL and writing it back, and
+            the ``POST`` replaces the whole local list: two ``grant`` calls on
+            one node at the same time can each write their list without the
+            other's entry. edu-sharing offers no version check to close it, and
+            the read-back sees what this call sent, not what another call sends
+            a moment later. ``publish`` goes through here too; ``revoke`` and
+            ``unpublish`` have the same window (audit COR-23-6).
         """
         if not permissions:
             raise ValidationError(
@@ -332,6 +341,11 @@ class NodePermissions:
             SilentDropError: when the repository answered 200 and the ACL
                 that came back is not the one that was sent -- see
                 ``_not_stored``.
+
+        Note:
+            The window ``grant`` names is here too: the ACL is read, trimmed
+            and written back whole, so an entry another call adds in between
+            is lost (audit COR-23-6).
         """
         _, changed = await self._revoke(authority, *permissions)
         return changed

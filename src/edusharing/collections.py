@@ -275,6 +275,11 @@ class Collections:
         on 2026-08-27: at the top level the API rejects it outright
         (``UnrecognizedPropertyException`` -- ``Node`` has no ``description``),
         and as ``properties["cm:description"]`` it is silently dropped.
+
+        Returns:
+            The collection as the answer to the ``POST`` describes it. Nothing
+            is read back, so a value the repository dropped is not noticed here
+            (audit DOC-23-1).
         """
         body: dict[str, Any] = {
             "title": title,
@@ -427,7 +432,8 @@ class Collections:
     async def remove(self, collection_id: str, node_id: str) -> None:
         """Take a resource out of a collection.
 
-        Removes only the reference -- the original is untouched.
+        Removes only the reference -- the original is untouched. Nothing is
+        read back: a ``DELETE`` that answers 2xx is taken at its word.
         """
         await self._transport.request(
             "DELETE",

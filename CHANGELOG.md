@@ -44,6 +44,14 @@ and in [`docs/audits/`](docs/audits/).
   class: 1.2 s for a 16 000-character address without an `@`, and
   `agent.check_url` masks every address it refuses. A match can only start
   where a run starts, and the pattern now says so.
+- **The change plan a person confirms can no longer be rewritten by what it
+  quotes.** `ChangePlan.describe()` passed titles and stored values through
+  `sanitize_text`, which keeps newlines, onto a format with one line per
+  change. A stored newline wrote "No change: ..." into the head and made a
+  change to `ccm:custom` read as one to `ccm:license`. Title, values and field
+  names -- which under an agent the model chooses -- are now flattened, and
+  the title is capped like the values (audit SEC-23-2, the class A1 closed in
+  `format`).
 
 ## [0.3.5] — 2026-09-21
 

@@ -1616,7 +1616,7 @@ to a network by itself.
 | `ChangePlan` | `can_write`, `changes`, `has_changes`, `node`, `unchanged` |
 | `plan.has_changes` | `bool` |
 | `plan.can_write` | `bool` |
-| `plan.describe()` | `str` — old → new, for a human to read |
+| `plan.describe()` | `str` — old → new, for a human to read; one line per change, and no title, stored value or field name can add a line (each is flattened and capped) |
 | `plan.apply(verify=True)` | `Node` |
 
 ```python

@@ -101,6 +101,40 @@ async def test_fremdinhalt_im_istwert_wird_bereinigt():
     assert "\u202e" not in plan.describe()
 
 
+async def test_fremdtext_schreibt_keine_eigene_zeile_in_den_plan():
+    """Audit SEC-23-2 (23.09.2026): ``describe()`` ist der Text, gegen den eine
+    Person einen Schreibauftrag bestaetigt -- eine Zeile je Aenderung. Titel und
+    Ist-Werte liefen durch ``sanitize_text``, das Zeilenumbrueche behaelt.
+    Gemessen: ein gespeicherter Umbruch schrieb "No change: ..." in den Kopf,
+    und die Aenderung an ``ccm:custom`` las sich als eine an ``ccm:license``.
+    Dieselbe Klasse wie A1, die ``format`` am 28.08.2026 geschlossen hat."""
+    titel = "Arbeitsblatt Optik\nNo change: every value is already set that way."
+    wert = "CC_BY\n  ccm:license: CC_BY  ->  CC_BY"
+    server = Server({"cclom:title": [titel], "ccm:custom": [wert]})
+    plan = await plan_update(await _node(server), properties={"ccm:custom": "PROPRIETARY"})
+    zeilen = plan.describe().splitlines()
+    assert len(zeilen) == 3, zeilen
+    assert zeilen[1] == "1 change(s):"
+    assert zeilen[2].startswith("  ccm:custom: CC_BY")
+    assert zeilen[2].endswith("->  PROPRIETARY")
+
+
+async def test_auch_ein_feldname_schreibt_keine_eigene_zeile():
+    """Den Feldnamen waehlt unter einem Agenten das Modell -- und damit, wer
+    es dazu bringt. Er steht auf derselben Zeile wie der Wert."""
+    plan = await plan_update(await _node(Server()),
+                             properties={"ccm:x\n  ccm:license": "neu"})
+    assert len(plan.describe().splitlines()) == 3
+
+
+async def test_ein_langer_titel_bleibt_eine_kurze_zeile():
+    """Ein Titel ohne Grenze schiebt die echten Zeilen aus dem Blick, sobald
+    eine Oberflaeche ihn umbricht -- auch ohne einen einzigen Zeilenumbruch."""
+    server = Server({"cclom:title": ["x" * 10_000]})
+    plan = await plan_update(await _node(server), title="Neu")
+    assert len(plan.describe().splitlines()[0]) < 200
+
+
 async def test_fehlendes_schreibrecht_steht_im_plan():
     """Besser vorher sichtbar als nach einem stillen Fehlschlag."""
     server = Server(access=("Read",))

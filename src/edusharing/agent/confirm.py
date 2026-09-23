@@ -21,17 +21,31 @@ from typing import Any
 
 from ..nodes import Node
 from ..nodes_write import fields_of
-from .sanitize import sanitize_text
+from .sanitize import one_line
 
 __all__ = ["ChangePlan", "plan_update"]
 
 
-def _show(values: list[str], *, max_chars: int = 80) -> str:
+def _line(text: str, *, max_chars: int = 80) -> str:
+    """Foreign text for one line of ``describe``: flat, and short.
+
+    ``describe`` gives every change a line of its own, and a person confirms a
+    write against it. ``sanitize_text`` keeps newlines, and a stored newline
+    wrote lines nobody planned -- measured 2026-09-23, "No change: ..." in the
+    head, and a change to ``ccm:custom`` that read as one to ``ccm:license``
+    (audit SEC-23-2; the class A1 closed in ``format``). The length cap matters
+    too: an uncapped title, wrapped by an interface, pushes the real lines out
+    of view without a single newline.
+    """
+    flat = one_line(text)
+    return flat if len(flat) <= max_chars else flat[: max_chars - 1] + "…"
+
+
+def _show(values: list[str]) -> str:
     """Make values readable -- the current value is foreign repository text."""
     if not values:
         return "(empty)"
-    text = ", ".join(sanitize_text(v) for v in values)
-    return text if len(text) <= max_chars else text[: max_chars - 1] + "…"
+    return _line(", ".join(one_line(v) for v in values))
 
 
 @dataclass
@@ -59,8 +73,13 @@ class ChangePlan:
         return self.node.can_write
 
     def describe(self) -> str:
-        """What this plan would change, as text to present."""
-        lines = [f"Node {self.node.id} ({sanitize_text(self.node.title) or 'untitled'})"]
+        """What this plan would change, as text to present.
+
+        One line per change. Every foreign part -- title, current values, and
+        the field names, which under an agent the model chooses -- is flattened
+        onto its line, so none of it can add a line of its own.
+        """
+        lines = [f"Node {self.node.id} ({_line(self.node.title) or 'untitled'})"]
 
         if not self.can_write:
             lines.append(
@@ -74,9 +93,10 @@ class ChangePlan:
 
         lines.append(f"{len(self.changes)} change(s):")
         for prop, (current, intended) in self.changes.items():
-            lines.append(f"  {prop}: {_show(current)}  ->  {_show(intended)}")
+            lines.append(f"  {one_line(prop)}: {_show(current)}  ->  {_show(intended)}")
         if self.unchanged:
-            lines.append(f"  (unchanged: {', '.join(sorted(self.unchanged))})")
+            names = ", ".join(one_line(p) for p in sorted(self.unchanged))
+            lines.append(f"  (unchanged: {names})")
         return "\n".join(lines)
 
     async def apply(self, *, verify: bool = True) -> Node:

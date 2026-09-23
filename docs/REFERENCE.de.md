@@ -1663,7 +1663,7 @@ Nichts davon spricht von sich aus mit einem Netz.
 | `ChangePlan` | `can_write`, `changes`, `has_changes`, `node`, `unchanged` |
 | `plan.has_changes` | `bool` |
 | `plan.can_write` | `bool` |
-| `plan.describe()` | `str` — alt → neu, zum Lesen für einen Menschen |
+| `plan.describe()` | `str` — alt → neu, zum Lesen für einen Menschen; eine Zeile je Änderung, und kein Titel, gespeicherter Wert oder Feldname kann eine Zeile hinzufügen (jeder wird eingeebnet und gekürzt) |
 | `plan.apply(verify=True)` | `Node` |
 
 ```python

@@ -265,6 +265,66 @@ async def test_eine_antwort_die_keine_liste_ist_ist_ein_fehler():
             await agent.schemas()
 
 
+# --- Felder in falscher Form (Audit COR-23-5) ---------------------------------
+#
+# Audit 23.09.2026: ``content_types`` las das Schema mit verschachteltem
+# ``.get`` -- ein ``label`` als Text warf ``AttributeError`` (Probe C2), und
+# ``_schema_info`` direkt daneben war laengst abgesichert.
+
+def _core_mit(typfeld):
+    return {"profileId": "core:descriptive", "version": "2.0.0",
+            "fields": [typfeld]}
+
+
+def _typfeld(concepts):
+    return {"id": "ccm:oeh_extendedType",
+            "system": {"vocabulary": {"type": "closed", "concepts": concepts}}}
+
+
+async def _arten(core):
+    async with _agent(lambda r: httpx.Response(200, json=core)) as agent:
+        return await agent.content_types()
+
+
+async def test_ein_label_als_text_ist_das_label():
+    arten = await _arten(_core_mit(_typfeld([
+        {"label": "Organisation", "schema_file": "organization.json",
+         "uri": "http://w3id.org/openeduhub/vocabs/contentTypes/organization"}])))
+    assert arten[0].label == "Organisation"
+
+
+async def test_ein_feld_in_falscher_form_gilt_als_nicht_gesagt():
+    """Wie bei ``Model.from_response``: ein Wert in falscher Form ist wie ein
+    fehlender -- ``ContentType`` verspricht ``str``, also ``""``."""
+    arten = await _arten(_core_mit(_typfeld([
+        {"label": {"de": 7}, "schema_file": ["a.json"], "uri": 42,
+         "icon": {"name": "x"}}])))
+    assert (arten[0].uri, arten[0].schema_file, arten[0].label,
+            arten[0].icon) == ("", "", "", "")
+
+
+async def test_ein_fremder_eintrag_neben_dem_typfeld_stoert_die_suche_nicht():
+    """Gesucht wird ein Feld; wie die anderen aussehen, ist nicht diese Frage."""
+    core = _core_mit(_typfeld([{"schema_file": "person.json", "uri": "u"}]))
+    core["fields"] = [None, "cclom:title", *core["fields"]]
+    assert [a.schema_file for a in await _arten(core)] == ["person.json"]
+
+
+@pytest.mark.parametrize("core", [
+    {"fields": 27},
+    _core_mit({"id": "ccm:oeh_extendedType", "system": "closed"}),
+    _core_mit({"id": "ccm:oeh_extendedType", "system": {"vocabulary": ["x"]}}),
+    _core_mit(_typfeld({"organization": "organization.json"})),
+    _core_mit(_typfeld([None])),
+    _core_mit(_typfeld(["organization.json"])),
+], ids=["fields", "system", "vocabulary", "concepts", "concept-none", "concept-text"])
+async def test_eine_zuordnung_in_falscher_form_ist_ein_fehler(core):
+    """Die Zuordnung selbst in falscher Form: kein ``AttributeError`` und keine
+    leere Liste -- beides sagte etwas anderes als "unlesbar"."""
+    with pytest.raises(EduSharingError, match="ccm:oeh_extendedType"):
+        await _arten(core)
+
+
 # --- Was die Durchsicht als ungetestet ausgewiesen hat ---------------------
 
 def test_from_env_nimmt_die_adresse_aus_der_umgebung(monkeypatch):

@@ -9,6 +9,8 @@ Eigenschaften, die zusaetzlich unter ``fields`` erscheinen sollen, mit ihrem
 vollen Namen.
 """
 
+import pytest
+
 from edusharing.flows.serialize import hit_as_dict
 from edusharing.results import SearchHit
 
@@ -39,6 +41,17 @@ def test_ein_treffer_kennt_vorschau_download_lizenz_und_groesse():
     assert hit.download_url == f"{REPO}/rest/node/v1/nodes/-home-/n-1/content"
     assert hit.license == "CC_BY"
     assert hit.size == 12345
+
+
+@pytest.mark.parametrize("gespeichert", ["²", "١٢", "12.5", "-3", " 7"])
+def test_eine_groesse_zaehlt_nur_in_ascii_ziffern(gespeichert):
+    """Audit COR-23-5 (23.09.2026): ``"²".isdigit()`` ist wahr, ``int("²")``
+    wirft ``ValueError``. ASCII-Ziffern, wie bei Content-Length und
+    Retry-After -- das Repositorium schreibt ``cclom:size`` selbst, anders
+    geschrieben ist es nicht von ihm."""
+    hit = SearchHit.from_node(
+        {"ref": {"id": "n-1"}, "properties": {"cclom:size": [gespeichert]}}, REPO)
+    assert hit.size is None
 
 
 def test_ein_typsymbol_ist_keine_vorschau():

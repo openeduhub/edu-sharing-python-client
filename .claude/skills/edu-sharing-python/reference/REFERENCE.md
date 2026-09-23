@@ -414,7 +414,7 @@ turns the same information into a breadcrumb that reads top-down.
 |---|---|
 | `node.content.has_content` | `bool` |
 | `node.content.mimetype` | `str \| None` |
-| `node.content.size` | `int \| None` |
+| `node.content.size` | `int \| None` — `None` also for a stored value that is not ASCII digits |
 | `node.content.download_url` | `str \| None` |
 | `node.content.download()` | `bytes` — read in chunks. **Public content only** on the measured instance: the download servlet does not authenticate, so a private node answers `403` no matter who asks. Use `text()` for a private node |
 | `node.content.download(max_bytes=…)` | `bytes` — `ContentTooLargeError` above the limit, before the request when `size` is known; the text paths pass `MAX_TEXT_BYTES` (8 MiB) |
@@ -1419,7 +1419,7 @@ Model choice, when you do not pass one:
 
 | Name | Does |
 |---|---|
-| `Model.from_response(body)` | one model from a raw entry — fields above |
+| `Model.from_response(body)` | one model from a raw entry — fields above; one in the wrong form reads as not given |
 | `rank_models(models)` | least loaded first |
 | `pick_model(models, prefer=…)` | the one to use |
 | `build_body(...)` / `read_answer(response)` | request body and answer text |

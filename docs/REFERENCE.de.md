@@ -428,7 +428,7 @@ macht daraus einen Pfad, der sich von oben nach unten liest.
 |---|---|
 | `node.content.has_content` | `bool` |
 | `node.content.mimetype` | `str \| None` |
-| `node.content.size` | `int \| None` |
+| `node.content.size` | `int \| None` — `None` auch für einen gespeicherten Wert aus anderen als ASCII-Ziffern |
 | `node.content.download_url` | `str \| None` |
 | `node.content.download()` | `bytes` — stückweise gelesen. **Nur öffentliche Inhalte** auf der gemessenen Instanz: das Download-Servlet authentifiziert nicht, ein privater Knoten antwortet `403`, egal wer fragt. Für einen privaten Knoten `text()` nehmen |
 | `node.content.download(max_bytes=…)` | `bytes` — `ContentTooLargeError` über der Grenze, vor dem Abruf, wenn `size` bekannt ist; die Textpfade übergeben `MAX_TEXT_BYTES` (8 MiB) |
@@ -1463,7 +1463,7 @@ Modellwahl, wenn Sie keines übergeben:
 
 | Name | Tut |
 |---|---|
-| `Model.from_response(body)` | ein Modell aus einem rohen Eintrag — Felder oben |
+| `Model.from_response(body)` | ein Modell aus einem rohen Eintrag — Felder oben; eines in falscher Form gilt als nicht angegeben |
 | `rank_models(models)` | am wenigsten ausgelastet zuerst |
 | `pick_model(models, prefer=…)` | das zu nehmende |
 | `build_body(...)` / `read_answer(response)` | Anfragerumpf und Antworttext |

@@ -78,9 +78,13 @@ class SearchHit:
 
     @property
     def size(self) -> int | None:
-        """Size in bytes, where the repository reports it."""
+        """Size in bytes, where the repository reports it.
+
+        ``None`` for a stored value that is not ASCII digits, as
+        ``NodeContent.size`` reads it (audit COR-23-5).
+        """
         value = read_value(self.properties(), self._role("size"))
-        return int(value) if value and str(value).isdigit() else None
+        return int(value) if value and value.isascii() and value.isdigit() else None
 
     def labels(self, prop: str) -> list[str]:
         """The readable values of a vocabulary property.

@@ -534,6 +534,28 @@ async def test_download_lehnt_eine_zu_grosse_datei_vor_dem_abruf_ab():
     assert await node.content.download(max_bytes=50) == b"x" * 50
 
 
+async def test_eine_unlesbare_groesse_haelt_den_abruf_nicht_auf():
+    """Audit COR-23-5 (23.09.2026): ``"²".isdigit()`` ist wahr, ``int("²")``
+    wirft -- ``cclom:size = ["²"]`` liess ``download(max_bytes=...)`` mit
+    ``ValueError`` enden. Eine unlesbare Groesse ist keine Groesse; dann
+    entscheidet, was ankommt."""
+
+    class MitDownload(Server):
+        def __call__(self, request):
+            if "eduservlet/download" in str(request.url):
+                return httpx.Response(200, content=b"x" * 50)
+            return super().__call__(request)
+
+    node = await _nodes(MitDownload()).get(NID)
+    node._data["downloadUrl"] = f"{REPO}/eduservlet/download?node={NID}"
+    node._data["content"] = {"hash": "-1222810457"}
+    node._data["properties"]["cclom:size"] = ["²"]
+    assert node.content.size is None
+    assert await node.content.download(max_bytes=50) == b"x" * 50
+    with pytest.raises(ContentTooLargeError):
+        await node.content.download(max_bytes=10)
+
+
 async def test_leere_datei_gilt_als_inhalt():
     """Die Unterscheidung, die den Hash noetig macht: eine 0-Byte-Datei ist
     ein Inhalt, ein Knoten ohne Datei nicht -- beide haben cclom:size None."""

@@ -104,6 +104,43 @@ def test_unlesbarer_termin_gilt_nicht_als_abgekuendigt():
     assert m.is_retired_on(date(2099, 1, 1)) is False
 
 
+# --- Felder in der falschen Form (Audit COR-23-5) ---------------------------
+
+def test_ein_termin_als_zahl_gilt_ebenso_nicht_als_abgekuendigt():
+    """Audit COR-23-5 (23.09.2026): der Docstring sagt, eine unerwartete Form
+    sei "ein Grund, nichts zu behaupten" -- gefangen wurde nur ``ValueError``,
+    und eine Zahl warf ``TypeError``. Gemessen in ``chat()``: erst NACHDEM das
+    Modell geantwortet hatte, die Antwort ging verloren."""
+    assert Model(id="x", shutdown_date=20260101).is_retired_on(date(2099, 1, 1)) is False  # type: ignore[arg-type]
+    assert Model.from_response({"id": "x", "shutdown_date": 20260101}).shutdown_date is None
+
+
+@pytest.mark.parametrize(("feld", "wert", "erwartet"), [
+    ("demand", "5", None), ("demand", True, None), ("demand", 3, 3),
+    ("status", 1, None), ("status", "ready", "ready"),
+    ("id", 42, ""), ("id", "glm-4.7", "glm-4.7"),
+    ("output", "text", ()), ("output", ["text", 7], ("text",)),
+    ("name", ["x"], None), ("owned_by", {"a": 1}, None),
+])
+def test_ein_feld_in_falscher_form_gilt_als_nicht_gesagt(feld, wert, erwartet):
+    """"Jedes Feld bleibt optional: ein fehlendes ist eine Antwort, kein
+    Fehler" -- und eines in falscher Form ist wie ein fehlendes. Gemessen:
+    ``demand="5"`` neben einer Zahl warf ``TypeError`` beim Ordnen."""
+    daten = {"id": "m", feld: wert}
+    assert getattr(Model.from_response(daten), feld) == erwartet
+
+
+def test_eine_gemischte_liste_laesst_sich_ordnen():
+    """Der gemessene Fall selbst: ``rank_models`` ueber ``"5"`` und ``3``."""
+    from edusharing.bapi.models import rank_models
+
+    liste = [Model.from_response({"id": "a", "demand": "5", "status": "ready",
+                                  "output": ["text"]}),
+             Model.from_response({"id": "b", "demand": 3, "status": "ready",
+                                  "output": ["text"]})]
+    assert [m.id for m in rank_models(liste)] == ["b", "a"]
+
+
 # --- Virtuelles Modell -----------------------------------------------------
 #
 # Mehrere Modelle unter einem Namen, und die Bibliothek nimmt daraus immer das

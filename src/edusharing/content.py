@@ -110,9 +110,14 @@ class NodeContent:
 
     @property
     def size(self) -> int | None:
-        """Size in bytes, where the repository reports it."""
+        """Size in bytes, where the repository reports it.
+
+        ``None`` for a stored value that is not ASCII digits -- the repository
+        writes the field itself, and ``"²".isdigit()`` is true where
+        ``int("²")`` raises (audit COR-23-5).
+        """
         value = self._node.metadata_profile.value(self._node.properties, "size")
-        return int(value) if value and str(value).isdigit() else None
+        return int(value) if value and value.isascii() and value.isdigit() else None
 
     async def upload(
         self,

@@ -63,7 +63,10 @@ class Model:
             return False
         try:
             return date.fromisoformat(self.shutdown_date) <= day
-        except ValueError:
+        # ``TypeError`` too: a number is an unexpected format as much as
+        # "demnaechst" is, and it came through ``chat()`` after the model had
+        # answered, losing the answer (audit COR-23-5).
+        except (TypeError, ValueError):
             return False
 
     @property
@@ -89,19 +92,36 @@ class Model:
         """Read one model out of the b-api model list.
 
         Every field stays optional: which of them a gateway fills is its own
-        decision, and a missing one is an answer rather than an error.
+        decision, and a missing one is an answer rather than an error. One in
+        the wrong form is read as missing -- checked, not trusted: a ``demand``
+        of ``"5"`` beside a number made the ranking raise ``TypeError``, and one
+        odd entry among 132 must not stop the choice among the rest (audit
+        COR-23-5).
         """
         data = _object(data, "models", "model entry")
         return cls(
-            id=data.get("id") or "",
-            demand=data.get("demand"),
-            status=data.get("status"),
-            input=tuple(data.get("input") or ()),
-            output=tuple(data.get("output") or ()),
-            owned_by=data.get("owned_by"),
-            name=data.get("name"),
-            shutdown_date=data.get("shutdown_date"),
+            id=_text(data.get("id")) or "",
+            demand=_count(data.get("demand")),
+            status=_text(data.get("status")),
+            input=_texts(data.get("input")),
+            output=_texts(data.get("output")),
+            owned_by=_text(data.get("owned_by")),
+            name=_text(data.get("name")),
+            shutdown_date=_text(data.get("shutdown_date")),
         )
+
+
+def _text(value: Any) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def _count(value: Any) -> int | None:
+    # ``bool`` is an ``int`` in Python, and ``True`` is not a load figure.
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _texts(value: Any) -> tuple[str, ...]:
+    return tuple(v for v in value if isinstance(v, str)) if isinstance(value, list) else ()
 
 
 @dataclass(frozen=True)

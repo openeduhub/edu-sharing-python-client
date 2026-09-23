@@ -83,6 +83,19 @@ and in [`docs/audits/`](docs/audits/).
   stores such a document verbatim. All fourteen parse sites now go through one
   reader that raises what `json` raises for unreadable text, and a guard fails
   on a parse anywhere else (audit COR-23-5).
+- **A field in the wrong form is read as not given.** Four readers checked the
+  object and trusted its fields. In the b-api model list a numeric
+  `shutdown_date` raised `TypeError` from `chat()` -- after the model had
+  answered, so the answer was lost -- and a `demand` of `"5"` beside a number
+  stopped the ranking; `Model.from_response` now reads each field by its type,
+  and `is_retired_on` claims nothing for a date it cannot read, as its
+  docstring always said. `MetadataAgent.content_types` raised
+  `AttributeError` for a `label` given as text; a plain-text label is the
+  label now, a vocabulary of the wrong shape an `EduSharingError`. And
+  `node.content.size` and `SearchHit.size` took `"²"` for digits, which ended
+  `download(max_bytes=...)` in `ValueError`; they read ASCII digits only, as
+  Content-Length and Retry-After always were, and a guard fails on an
+  `isdigit()` without `isascii()` beside it (audit COR-23-5).
 - **A proxy's page is no longer read as "this page has no text".** The
   extraction service read a success without its answer object as `{}` and
   answered `reason="no_text"` -- a statement about the page, for every

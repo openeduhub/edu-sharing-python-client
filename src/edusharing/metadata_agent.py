@@ -242,8 +242,11 @@ class MetadataAgent:
 
         Raises:
             EduSharingError: when ``core.json`` carries no
-                ``ccm:oeh_extendedType`` field. Answering with an empty list
-                would hide a renamed field behind "no content types".
+                ``ccm:oeh_extendedType`` field, or its vocabulary in a shape
+                that cannot be read. Answering with an empty list would hide a
+                renamed field behind "no content types". A single value of the
+                wrong type (a ``uri`` given as a number) is read as not given,
+                not as an error; a ``label`` given as plain text is the label.
         """
         # A copy on every return, the first included: the list belongs to the
         # caller, and nothing expires this cache -- a caller's ``clear()`` on the
@@ -255,27 +258,23 @@ class MetadataAgent:
             return list(cached)
 
         core = await self.schema(CORE_SCHEMA, context=context, version=version)
-        field = next((e for e in core.get("fields") or []
-                     if e.get("id") == TYPE_FIELD), None)
+        where = f"{CORE_SCHEMA} of {context}/{version}"
+        fields = core.get("fields") or []
+        if not isinstance(fields, list):
+            raise _unreadable_mapping(where, "'fields' is not a list")
+        # Only the type field is asked about; how the others look is not this
+        # question, so an entry of another shape is passed over.
+        field = next((e for e in fields
+                     if isinstance(e, dict) and e.get("id") == TYPE_FIELD), None)
         if field is None:
             raise EduSharingError(
-                f"{CORE_SCHEMA} of {context}/{version} carries no "
+                f"{where} carries no "
                 f"{TYPE_FIELD!r} field, so the mapping content type -> schema "
                 "cannot be read. An empty list would read as 'this agent "
                 "describes no content types', which is a different statement. "
                 "The agent has most likely renamed or moved the field."
             )
-        vocabulary = (field.get("system") or {}).get("vocabulary") or {}
-        types = [
-            ContentType(
-                uri=concept.get("uri") or "",
-                schema_file=concept.get("schema_file") or "",
-                label=(concept.get("label") or {}).get("de") or "",
-                icon=concept.get("icon") or "",
-                raw=concept,
-            )
-            for concept in (vocabulary.get("concepts") or [])
-        ]
+        types = [_content_type(concept) for concept in _concepts(field, where)]
         self._types[(context, version)] = types
         return list(types)
 
@@ -341,6 +340,46 @@ def _schema_info(value: Any) -> SchemaInfo:
         )
     except (TypeError, ValueError, OverflowError) as exc:
         raise EduSharingError("The metadata agent returned invalid schema list fields.") from exc
+
+
+# The type field's vocabulary is foreign data at every level, read the way
+# ``_schema_info`` reads the list: a nested ``.get`` on it raised
+# ``AttributeError`` for a ``label`` given as text (audit COR-23-5).
+
+def _concepts(field: dict[str, Any], where: str) -> list[dict[str, Any]]:
+    system = field.get("system") or {}
+    vocabulary = (system.get("vocabulary") or {}) if isinstance(system, dict) else None
+    concepts = (vocabulary.get("concepts") or []) if isinstance(vocabulary, dict) else None
+    if isinstance(concepts, list) and all(isinstance(c, dict) for c in concepts):
+        return concepts
+    raise _unreadable_mapping(
+        where, f"the {TYPE_FIELD!r} field carries no vocabulary readable as a list of objects")
+
+
+def _content_type(concept: dict[str, Any]) -> ContentType:
+    """One concept; a value of the wrong type is read as not given."""
+    label = concept.get("label")
+    if isinstance(label, dict):
+        label = label.get("de")
+    return ContentType(
+        uri=_text(concept.get("uri")),
+        schema_file=_text(concept.get("schema_file")),
+        label=_text(label),
+        icon=_text(concept.get("icon")),
+        raw=concept,
+    )
+
+
+def _text(value: Any) -> str:
+    return value if isinstance(value, str) else ""
+
+
+def _unreadable_mapping(where: str, what: str) -> EduSharingError:
+    return EduSharingError(
+        f"{where}: {what}, so the mapping content type -> schema "
+        f"({TYPE_FIELD!r}) cannot be read. An empty list would read as 'this "
+        "agent describes no content types', which is a different statement."
+    )
 
 
 def _check_base(value: str) -> str:

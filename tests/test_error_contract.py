@@ -234,3 +234,59 @@ def test_the_parse_guard_sees_a_parse():
               "b = response.json()\n"
               "c = transport.json('GET', '/x')\n")
     assert _foreign_parses(sample, "s.py") == ["s.py:2 json.loads", "s.py:3 .json()"]
+
+
+# --- A digit test that int() does not share --------------------------------------
+#
+# ``"²".isdigit()`` is true and ``int("²")`` raises ``ValueError``: both ``size``
+# readers let a stored ``cclom:size`` of ``"²"`` end a download that way (audit
+# COR-23-5). ``_http.py`` and ``retry.py`` had asked ``isascii()`` first all
+# along.
+
+#: A digit test that converts nothing. ``_is_address_shaped`` only refuses, and
+#: a wider notion of "digits" refuses more -- the safe side for that check.
+_DIGIT_TESTS_THAT_CONVERT_NOTHING = {
+    ("urls.py", "host.rsplit('.', 1)[-1].isdigit()"),
+}
+
+
+def _is_call_to(node: ast.AST, method: str) -> bool:
+    return (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+            and node.func.attr == method)
+
+
+def _bare_digit_tests(text: str, label: str) -> list[str]:
+    """``x.isdigit()`` without an ``x.isascii()`` in the same ``and``."""
+    tree = ast.parse(text, filename=label)
+    guarded = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
+            asked = {ast.dump(v.func.value) for v in node.values
+                     if _is_call_to(v, "isascii")}
+            guarded.update(id(v) for v in node.values
+                           if _is_call_to(v, "isdigit")
+                           and ast.dump(v.func.value) in asked)
+    return [f"{label}:{node.lineno} {ast.unparse(node)}" for node in ast.walk(tree)
+            if _is_call_to(node, "isdigit") and id(node) not in guarded
+            and (label, ast.unparse(node)) not in _DIGIT_TESTS_THAT_CONVERT_NOTHING]
+
+
+def test_every_digit_test_asks_for_ascii():
+    offenders = [
+        hit
+        for path in sorted(SOURCE.rglob("*.py"))
+        if "_generated" not in path.parts
+        for hit in _bare_digit_tests(path.read_text(encoding="utf-8"),
+                                     path.relative_to(SOURCE).as_posix())
+    ]
+    assert offenders == [], (
+        "isdigit() accepts '²', int() does not -- ask isascii() in the same "
+        "'and':\n" + "\n".join(offenders))
+
+
+def test_the_digit_guard_sees_a_bare_digit_test():
+    sample = ("a = int(v) if v.isdigit() else None\n"
+              "b = int(v) if v and v.isascii() and v.isdigit() else None\n"
+              "c = w.isascii() and v.isdigit()\n")
+    assert _bare_digit_tests(sample, "s.py") == ["s.py:1 v.isdigit()",
+                                                 "s.py:3 v.isdigit()"]

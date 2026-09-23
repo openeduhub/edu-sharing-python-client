@@ -36,7 +36,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from ._checks import check_mimetype
-from .errors import ContentTooLargeError, EduSharingError
+from .errors import ContentTooLargeError, EduSharingError, ValidationError
 from .urls import path_segment
 
 if TYPE_CHECKING:
@@ -169,13 +169,13 @@ class NodeContent:
             afterwards.
 
         Raises:
-            ValueError: on empty data. The endpoint would answer 200 and store
-                a preview of nothing.
-            ValidationError: when ``mimetype`` is not a plain ``type/subtype``.
+            ValidationError: on empty data -- the endpoint would answer 200 and
+                store a preview of nothing -- and when ``mimetype`` is not a
+                plain ``type/subtype``.
         """
         check_mimetype(mimetype)
         if not data:
-            raise ValueError(
+            raise ValidationError(
                 "A preview image cannot be empty -- the repository would store "
                 "one of nothing and report success."
             )

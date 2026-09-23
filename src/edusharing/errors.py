@@ -114,10 +114,19 @@ class NotFoundError(EduSharingError):
     """The node, collection or endpoint does not exist."""
 
 
-class ValidationError(EduSharingError):
-    """The repository rejected the request (``DAOValidationException``).
+class ValidationError(EduSharingError, ValueError):
+    """The request is wrong -- found before sending, or refused by the server.
 
-    Typically: a search criterion the addressed query does not know.
+    Before sending: an argument this library can tell is wrong, such as an
+    empty query or a MIME type that would write a header of its own. From the
+    server: typically a search criterion the addressed query does not know
+    (``DAOValidationException``).
+
+    Also a ``ValueError``. Until 2026-09-23 nineteen input checks raised a bare
+    ``ValueError`` -- outside the contract every other error keeps, so
+    ``agent.result.as_result`` let it end the run (audit API-23-1). They raise
+    this now, and an ``except ValueError`` written against them still catches
+    them.
     """
 
 

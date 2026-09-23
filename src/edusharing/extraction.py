@@ -59,6 +59,7 @@ import httpx
 from .errors import (
     EduSharingError,
     RateLimitedError,
+    ValidationError,
     at_least,
     check_client,
     redirect_error,
@@ -184,7 +185,7 @@ class TextExtraction:
         """
         try:
             if unsafe_url_syntax(repository_url) is not None:
-                raise ValueError("unsafe URL")
+                raise EduSharingError("unsafe URL")
             source = httpx.URL(normalize_repository_url(repository_url))
             # HTTPX encodes IDNA but also accepts malformed ASCII DNS labels.
             labels = source.raw_host.decode("ascii").split(".")
@@ -194,7 +195,7 @@ class TextExtraction:
                     or not all(re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", label)
                                for label in labels)
                     or (source.port is not None and not 1 <= source.port <= 65535)):
-                raise ValueError("unsupported repository address")
+                raise EduSharingError("unsupported repository address")
             base = source.copy_with(host=service_host, path="", query=None, fragment=None)
         except (EduSharingError, httpx.InvalidURL, ValueError):
             raise EduSharingError(
@@ -259,17 +260,17 @@ class TextExtraction:
             error** -- ``reason`` says which of the four causes it was.
 
         Raises:
-            ValueError: for an unknown ``method`` or a ``max_chars`` below one.
+            ValidationError: for an unknown ``method`` or a ``max_chars`` below one.
             EduSharingError: when the service itself fails -- a rejected body
                 (422) or an error it kept answering with after the retries.
         """
         if method not in METHODS:
-            raise ValueError(
+            raise ValidationError(
                 f"method={method!r} is unknown -- the service accepts "
                 f"{' and '.join(METHODS)}."
             )
         if max_chars is not None and max_chars < 1:
-            raise ValueError(
+            raise ValidationError(
                 f"max_chars={max_chars!r} would keep no text at all -- leave it "
                 "out to keep everything."
             )

@@ -26,7 +26,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from ..dto import node_id_of, page_cut
-from ..errors import EduSharingError
+from ..errors import EduSharingError, ValidationError
 from ..urls import path_segment
 from .contents import collection_contents
 
@@ -253,7 +253,7 @@ async def search_in_collection(
         for are in neither list: they leave nothing out.
 
     Raises:
-        ValueError: on an empty query.
+        ValidationError: on an empty query.
         NotFoundError: when no collection carries this id.
         EduSharingError: when not one collection could be read -- a wrong
             password refuses all of them, and that is no partial answer.
@@ -261,7 +261,7 @@ async def search_in_collection(
             raised as well rather than counted.
     """
     if not query or not query.strip():
-        raise ValueError(
+        raise ValidationError(
             "search_in_collection() needs a query -- without one it would be "
             "collection_contents(), which is a different flow."
         )

@@ -1771,7 +1771,7 @@ Jeder Fehlschlag ist ein `EduSharingError`. Wer den fängt, fängt alle.
 | `AuthenticationError` | nicht angemeldet, oder falsche Zugangsdaten (401) |
 | `PermissionDeniedError` | angemeldet, aber nicht erlaubt (403) |
 | `NotFoundError` | kein solcher Knoten, keine solche Sammlung, keine solche Gruppe (404) |
-| `ValidationError` | die Anfrage ist falsch: vor dem Senden erkannt (unbekannter Kurzname, leerer Dateiname) **oder** vom Server mit 400 abgelehnt — ein Kriterium, das dieser Metadatensatz nicht kennt, eine Template-Id ohne Konfiguration |
+| `ValidationError` | die Anfrage ist falsch: vor dem Senden erkannt (unbekannter Kurzname, leerer Dateiname, leere Suche oder leerer Vorschlag) **oder** vom Server mit 400 abgelehnt — ein Kriterium, das dieser Metadatensatz nicht kennt, eine Template-Id ohne Konfiguration. Zugleich ein `ValueError`: die Eingabeprüfungen warfen bis zum 23.09.2026 einen blanken, und ein dagegen geschriebenes `except ValueError` fängt sie weiter |
 | `ConflictError` | das Repository lehnt den Zustand ab (409) |
 | `ServerError` | die Instanz ist gescheitert (5xx) |
 | `RateLimitedError` | zu viele Anfragen (429) — `retry_after` trägt die vom Dienst genannten Sekunden |

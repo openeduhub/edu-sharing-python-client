@@ -9,6 +9,8 @@ depending on the other.
 
 from __future__ import annotations
 
+from .errors import ValidationError
+
 __all__ = ["cap_text"]
 
 _ELLIPSIS = "…"
@@ -22,10 +24,10 @@ def cap_text(text: str | None, max_chars: int, *, marker: str = _ELLIPSIS) -> st
     silently looks complete, and a model will quote it as such.
 
     Raises:
-        ValueError: for a budget below 1.
+        ValidationError: for a budget below 1.
     """
     if max_chars < 1:
-        raise ValueError(f"max_chars must be at least 1, was {max_chars}.")
+        raise ValidationError(f"max_chars must be at least 1, was {max_chars}.")
     if not text:
         return ""
     if len(text) <= max_chars:

@@ -92,6 +92,21 @@ and in [`docs/audits/`](docs/audits/).
   holds 416 values, roughly 80 KiB. `restore()` keeps the bound as well and
   returns how many entries it holds (audit API-23-2).
 
+### Changed
+
+- **Every input check raises `ValidationError`, and `ValidationError` is
+  also a `ValueError`.** Nineteen checks across twelve modules -- an empty
+  comment, query, proposal or preview image, a rating of zero, a grant of
+  nothing, an unknown extraction method among them -- raised a bare
+  `ValueError`, outside the contract the reference, CONTRIBUTING and the
+  skill all state: `as_result` let each one end an agent's run, and three of
+  them sit in flows, the JSON surface agents call. `SkillConventions` refuses
+  a misconfiguration the same way. Because `ValidationError` now inherits
+  from `ValueError` too, an `except ValueError` written against the old
+  behaviour keeps working; it also catches a server's 400 now, which is the
+  same statement -- the request is wrong. A guard walks the hand-written
+  layer and fails on any `raise` of a built-in exception (audit API-23-1).
+
 ## [0.3.5] — 2026-09-21
 
 **What was proven, and what was not.** `ruff check .` clean, `mypy` clean over

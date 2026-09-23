@@ -23,7 +23,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from .dto import node_id_of
-from .errors import SilentDropError
+from .errors import SilentDropError, ValidationError
 from .urls import path_segment
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -97,7 +97,7 @@ class Comments:
             there is nothing else to return.
 
         Raises:
-            ValueError: on empty or blank text. Measured, the repository
+            ValidationError: on empty or blank text. Measured, the repository
                 accepts it with a 200 and stores an entry nobody can see.
             SilentDropError: when no comment appeared that was not there before.
             EduSharingError: when the comments cannot be read. The snapshot is
@@ -135,7 +135,7 @@ class Comments:
         a comment on the comment and ends in a 500.
 
         Raises:
-            ValueError: on empty or blank text.
+            ValidationError: on empty or blank text.
             SilentDropError: when no comment of that id carries the new text
                 afterwards.
         """
@@ -170,7 +170,7 @@ class Comments:
     @staticmethod
     def _require_text(text: str) -> None:
         if not text or not text.strip():
-            raise ValueError(
+            raise ValidationError(
                 "A comment without text is not one -- the repository accepts it "
                 "(measured: 200) and stores an entry nobody can see."
             )

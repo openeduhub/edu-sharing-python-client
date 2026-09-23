@@ -57,7 +57,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from .dto import bare_id, page_cut
-from .errors import ConflictError, SilentDropError
+from .errors import ConflictError, SilentDropError, ValidationError
 from .urls import path_segment
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -351,7 +351,7 @@ class NodePage:
             ConflictError: this node carries no page, or the stored document is
                 missing, unparseable, not an object, has no variant list, or
                 does not list ``variant_id``. It is refused, never repaired.
-            ValueError: ``variant_id`` is not one of this page's variants.
+            ValidationError: ``variant_id`` is not one of this page's variants.
             SilentDropError: the write answered 200 and stored nothing.
         """
         page = await self.get()
@@ -366,7 +366,7 @@ class NodePage:
                 # It may well be a variant -- it was simply not read. Saying
                 # "is not a variant" about one that exists sent the caller
                 # looking for a fault that is not there (F09).
-                raise ValueError(
+                raise ValidationError(
                     f"{variant_id!r} is not among the {len(page.variants)} "
                     f"variants read of the {page.total_variants} this folder "
                     f"holds, so it cannot be confirmed to be one. This reader "
@@ -374,7 +374,7 @@ class NodePage:
                     "carry one to three."
                 )
             known = ", ".join(v.id for v in page.variants) or "none"
-            raise ValueError(
+            raise ValidationError(
                 f"{variant_id!r} is not a variant of this page (known: {known}). "
                 "A default outside variants[] renders nothing, and the "
                 "repository would store it anyway."

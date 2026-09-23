@@ -37,7 +37,7 @@ from typing import Any
 
 from ._checks import check_locale
 from .dto import node_id_of, stored_title_of
-from .errors import ConflictError, EduSharingError, SilentDropError
+from .errors import ConflictError, EduSharingError, SilentDropError, ValidationError
 from .nodes import Node, Nodes
 from .profile import WLO_METADATA_PROFILE, MetadataProfile
 from .results import SearchHit, SearchResult
@@ -326,11 +326,11 @@ class Collections:
             empty body.
 
         Raises:
-            ValueError: when neither title nor description is given.
+            ValidationError: when neither title nor description is given.
             SilentDropError: when a value is absent after reading back.
         """
         if title is None and description is None:
-            raise ValueError(
+            raise ValidationError(
                 "update() needs a title or description -- a call that changes "
                 "nothing still costs a request and reads like a change."
             )

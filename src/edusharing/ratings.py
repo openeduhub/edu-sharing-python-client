@@ -26,6 +26,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .errors import ValidationError
 from .urls import path_segment
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -91,12 +92,12 @@ async def rate(node: Node, value: float, text: str = "") -> Rating | None:
         an empty body, so there is nothing else to go by.
 
     Raises:
-        ValueError: for a vote of zero or less. Measured: zero does **not**
+        ValidationError: for a vote of zero or less. Measured: zero does **not**
             take a rating back, it counts as a vote of zero and drags the
             average down. Whoever writes it almost always means ``unrate()``.
     """
     if value <= 0:
-        raise ValueError(
+        raise ValidationError(
             f"A rating of {value} is not a way to take one back -- measured, it "
             "counts as a vote of zero and lowers the average. Use unrate()."
         )

@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from .errors import SilentDropError
+from .errors import SilentDropError, ValidationError
 from .permissions import _authority_type
 from .urls import path_segment
 
@@ -110,7 +110,7 @@ class Workflow:
             answers with an empty body.
 
         Raises:
-            ValueError: without a receiver or without a status.
+            ValidationError: without a receiver or without a status.
             SilentDropError: when the history does not show the step
                 afterwards, although the repository reported 200.
             EduSharingError: when the history cannot be read. It is read
@@ -121,12 +121,12 @@ class Workflow:
         names = [receiver] if isinstance(receiver, str) else list(receiver)
         names = [n for n in names if n and n.strip()]
         if not names:
-            raise ValueError(
+            raise ValidationError(
                 "submit() needs at least one receiver -- a submission to "
                 "nobody lands in no queue."
             )
         if not status or not status.strip():
-            raise ValueError(
+            raise ValidationError(
                 "submit() needs a status. The vocabulary belongs to the "
                 "instance (WLO uses '100_tocheck'), so there is nothing "
                 "sensible to default to."

@@ -37,7 +37,12 @@ from typing import TYPE_CHECKING, Any
 
 from .content import MAX_TEXT_BYTES, decode_text, is_text_like
 from .dto import node_id_of, page_cut, render_url
-from .errors import ContentTooLargeError, NotFoundError, PermissionDeniedError
+from .errors import (
+    ContentTooLargeError,
+    NotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+)
 from .fields import carries, resolve_vocabulary
 from .ranking import query_terms, term_matches
 from .results import original_id_of
@@ -105,7 +110,7 @@ class SkillConventions:
         # A skill kind outside the parsed kinds would yield an empty registry
         # with no reason -- a misconfiguration, said at construction.
         if self.skill_kind not in self.block_kinds:
-            raise ValueError(
+            raise ValidationError(
                 f"skill_kind {self.skill_kind!r} is not among block_kinds "
                 f"{self.block_kinds!r} -- the registry would parse no skill block."
             )

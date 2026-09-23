@@ -41,7 +41,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from ..dto import bare_id
-from ..errors import EduSharingError
+from ..errors import EduSharingError, ValidationError
 from ..pages import PAGE_REF, CuratedPage, PageVariant
 from ..results import SearchResult
 
@@ -82,7 +82,7 @@ async def page(
         max_widgets: cap for the above. ``truncated`` says whether it bit.
 
     Raises:
-        ValueError: on ``max_widgets`` below one.
+        ValidationError: on ``max_widgets`` below one.
         NotFoundError: when no node carries ``collection_id``.
 
     Returns:
@@ -100,7 +100,7 @@ async def page(
         claiming the folder is empty (R04, 2026-09-09).
     """
     if max_widgets < 1:
-        raise ValueError(
+        raise ValidationError(
             f"max_widgets={max_widgets!r} would read no widget at all -- pass "
             "resolve_widgets=False to say that on purpose."
         )
@@ -168,7 +168,7 @@ async def find_pages(
         limit: how many collection hits to look at.
 
     Raises:
-        ValueError: on a limit below one.
+        ValidationError: on a limit below one.
 
     Returns:
         ``{query, hits, checked, total, total_is_lower_bound, warnings, reason}``.
@@ -177,7 +177,7 @@ async def find_pages(
         routes and one of them reports no total at all.
     """
     if limit < 1:
-        raise ValueError(
+        raise ValidationError(
             f"limit={limit!r} would look at no collection at all, and the "
             "answer would say 'no page found' about a search never run."
         )

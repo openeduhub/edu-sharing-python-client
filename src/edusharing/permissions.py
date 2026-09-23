@@ -34,7 +34,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from .errors import ConflictError, SilentDropError
+from .errors import ConflictError, SilentDropError, ValidationError
 from .urls import path_segment
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -251,10 +251,10 @@ class NodePermissions:
                 it. A user name is not checked -- it is stored whether the
                 account exists or not, so this check cannot catch a mistyped
                 one.
-            ValueError: when no permission is named.
+            ValidationError: when no permission is named.
         """
         if not permissions:
-            raise ValueError(
+            raise ValidationError(
                 "grant() needs at least one permission -- "
                 f"granting nothing to {authority!r} would be a no-op that reads "
                 "like a change."

@@ -36,7 +36,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from .errors import SilentDropError
+from .errors import SilentDropError, ValidationError
 from .urls import path_segment
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -139,16 +139,16 @@ class Suggestions:
             The proposal as created, with its id and ``PENDING`` status.
 
         Raises:
-            ValueError: on an empty property, value or reason.
+            ValidationError: on an empty property, value or reason.
             SilentDropError: when the repository answers 200 and stores no
                 proposal.
         """
         if not property or not property.strip():
-            raise ValueError("A proposal needs a property to propose for.")
+            raise ValidationError("A proposal needs a property to propose for.")
         if not value or not value.strip():
-            raise ValueError("A proposal needs a value.")
+            raise ValidationError("A proposal needs a value.")
         if not reason or not reason.strip():
-            raise ValueError(
+            raise ValidationError(
                 "A proposal needs a reason -- without one nobody can weigh it, "
                 "and weighing it is the point of proposing rather than writing."
             )
@@ -189,7 +189,7 @@ class Suggestions:
             accept: ``True`` marks them ``ACCEPTED``, ``False`` ``DECLINED``.
 
         Raises:
-            ValueError: when no id is given -- an empty decision is a request
+            ValidationError: when no id is given -- an empty decision is a request
                 that reads like a change and is none.
             SilentDropError: when a named suggestion does not carry the new
                 status afterwards. Measured, that is what a malformed call
@@ -197,7 +197,7 @@ class Suggestions:
         """
         chosen = list(_as_list(ids))
         if not chosen:
-            raise ValueError("decide() needs at least one suggestion id.")
+            raise ValidationError("decide() needs at least one suggestion id.")
         wanted = "ACCEPTED" if accept else "DECLINED"
         # The ids go in the QUERY, not the body. Measured 2026-08-28: sent as a
         # JSON body they are ignored -- the endpoint answers 200 and every

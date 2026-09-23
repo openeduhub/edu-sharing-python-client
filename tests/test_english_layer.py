@@ -50,7 +50,7 @@ GERMAN = frozenset("""
 GERMAN_CAPITALISED = frozenset({"Die"})
 
 #: What is scanned, relative to the repository root.
-SCOPES = ("src/edusharing",)
+SCOPES = ("src/edusharing", "scripts")
 
 #: German that is data, not prose -- each with the reason it stays.
 ALLOWED_FILES = {

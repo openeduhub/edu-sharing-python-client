@@ -80,16 +80,16 @@ def test_keine_erfolgsantwort_faellt_bei_der_erzeugung_weg():
     verloren = [e for e in _nicht_uebernommene_antworten() if e[2].startswith("2")]
     assert verloren == [], (
         "diese Erfolgsantworten kommen nicht in der generierten Schicht an: "
-        f"{verloren}. UNBRAUCHBARE_TYPEN in scripts/generate_client.py "
+        f"{verloren}. UNUSABLE_TYPES in scripts/generate_client.py "
         "ergaenzen und neu erzeugen -- nicht die erzeugte Datei aendern.")
 
 
 def test_die_abbildung_des_erzeugungswegs_trifft_die_spec():
-    """Ein Eintrag in ``UNBRAUCHBARE_TYPEN``, den die Spec nicht kennt, ist
+    """Ein Eintrag in ``UNUSABLE_TYPES``, den die Spec nicht kennt, ist
     tote Konfiguration -- und die naechste Spec-Fassung merkt es nicht."""
     spec = json.loads(SPEC.read_text(encoding="utf-8"))
     roh = SPEC.read_text(encoding="utf-8")
-    unbenutzt = [a for a in _erzeugungsweg().UNBRAUCHBARE_TYPEN
+    unbenutzt = [a for a in _erzeugungsweg().UNUSABLE_TYPES
                  if f'"{a}"' not in roh]
     assert unbenutzt == [], unbenutzt
     assert spec["paths"], "die Spec ist leer gelesen worden"

@@ -177,8 +177,14 @@ and in [`docs/audits/`](docs/audits/).
   `bapi/passthrough.py`, `flows/tree.py` and -- beyond the audit's list --
   six in `flows/contents.py`, and `ChildPage.__repr__`, which printed
   `ChildPage(0 von 42, ab 10)` and now prints `ChildPage(0 of 42, from 10)`.
-  A test scans comments, text and names for German words and exempts
-  quotations and three named pieces of German data (audit MNT-23-2).
+  The three scripts under `scripts/` were German throughout and are English
+  now: their functions (`sync_skill.differences`, `.synchronise`, `.pairs`;
+  `build_skill_zip.build`, `.short_description`), their output (`missing:`,
+  `stale:`, `orphaned:`) and the provenance note they write into
+  `_generated/GENERATED.md`, regenerated with them -- the only file of the
+  layer that changed. A test scans comments, text and names for German words
+  and exempts quotations and three named pieces of German data (audit
+  MNT-23-2).
 - The generated layer was rebuilt with `openapi-python-client` 0.29.1 (from
   0.29.0), which changed 327 of its files: generated enums are `StrEnum`
   rather than `Enum`, empty docstrings are gone, and two admin Lucene

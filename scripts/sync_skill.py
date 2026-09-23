@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""Haelt die Nachschlagedateien im Skill-Ordner gleich mit ``docs/``.
+"""Keeps the reference files in the skill folder equal to ``docs/``.
 
-Der Skill ``.claude/skills/edu-sharing-python`` soll auch ausserhalb dieses
-Repositoriums tragen -- kopiert nach ``~/.claude/skills/``, nach
-``~/.agents/skills/`` oder als ZIP hochgeladen. Verweise nach ``../../../docs``
-sind dort tot. Deshalb liegen unter ``reference/`` Kopien von REFERENCE und
-FLOWS (je beide Sprachen) und aller Beispiele, inhaltsgleich (Zeilenenden
-zaehlen wie fuer Git, siehe ``_inhalt``): eine Quelle je Inhalt. Die
-Verweise zwischen ihnen bleiben gueltig, weil jede Kopie ihren relativen
-Namen behaelt (``FLOWS.md`` -> ``examples/05_flow_search.py``).
+The skill ``.claude/skills/edu-sharing-python`` has to work outside this
+repository too -- copied to ``~/.claude/skills/``, to ``~/.agents/skills/`` or
+uploaded as a ZIP. Links to ``../../../docs`` are dead there. So ``reference/``
+holds copies of REFERENCE and FLOWS (both languages each) and of every
+example, with equal content (line endings counted as Git counts them, see
+``_content``): one source per content. The links between them stay valid,
+because every copy keeps its relative name (``FLOWS.md`` ->
+``examples/05_flow_search.py``).
 
-Was nur der Skill hat -- ``SKILL.md``, ``SKILL.de.md``, die Fallen unter
-``reference/TRAPS*.md`` --, fasst dieses Skript nicht an.
+What only the skill has -- ``SKILL.md``, ``SKILL.de.md``, the traps under
+``reference/TRAPS*.md`` -- this script does not touch.
 
-Aufruf::
+Usage::
 
-    python scripts/sync_skill.py           # kopiert, entfernt verwaiste Beispiele
-    python scripts/sync_skill.py --check   # meldet Abweichungen, Exit 1
+    python scripts/sync_skill.py           # copies, removes orphaned examples
+    python scripts/sync_skill.py --check   # reports differences, exit 1
 
-``tests/test_skill_bundle.py`` verlangt die Gleichheit.
+``tests/test_skill_bundle.py`` requires the copies to be equal.
 """
 
 from __future__ import annotations
@@ -28,83 +28,82 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-NACHSCHLAG = Path(".claude") / "skills" / "edu-sharing-python" / "reference"
+REFERENCE_DIR = Path(".claude") / "skills" / "edu-sharing-python" / "reference"
 
-#: Die Dokumente, die mitkommen. Beide Sprachen: der Skill ist zweisprachig.
-DOKUMENTE = ("REFERENCE.md", "REFERENCE.de.md", "FLOWS.md", "FLOWS.de.md")
-
-
-def paare(root: Path = ROOT) -> list[tuple[Path, Path]]:
-    """``(Quelle, Kopie)`` fuer jede Datei, die in den Skill-Ordner gehoert."""
-    docs, ziel = root / "docs", root / NACHSCHLAG
-    gefunden = [(docs / name, ziel / name) for name in DOKUMENTE]
-    gefunden += [(p, ziel / "examples" / p.name)
-                 for p in sorted((docs / "examples").glob("*.py"))]
-    return gefunden
+#: The documents that come along. Both languages: the skill is bilingual.
+DOCUMENTS = ("REFERENCE.md", "REFERENCE.de.md", "FLOWS.md", "FLOWS.de.md")
 
 
-def _verwaist(root: Path) -> list[Path]:
-    """Beispiele im Skill-Ordner, die es in ``docs/examples`` nicht mehr gibt."""
-    erwartet = {kopie for _, kopie in paare(root)}
-    return sorted(p for p in (root / NACHSCHLAG / "examples").glob("*.py")
-                  if p not in erwartet)
+def pairs(root: Path = ROOT) -> list[tuple[Path, Path]]:
+    """``(source, copy)`` for every file that belongs in the skill folder."""
+    docs, target = root / "docs", root / REFERENCE_DIR
+    found = [(docs / name, target / name) for name in DOCUMENTS]
+    found += [(p, target / "examples" / p.name)
+              for p in sorted((docs / "examples").glob("*.py"))]
+    return found
 
 
-def _anzeige(pfad: Path, root: Path) -> str:
-    return pfad.relative_to(root).as_posix()
+def _orphaned(root: Path) -> list[Path]:
+    """Examples in the skill folder that ``docs/examples`` no longer has."""
+    expected = {copy for _, copy in pairs(root)}
+    return sorted(p for p in (root / REFERENCE_DIR / "examples").glob("*.py")
+                  if p not in expected)
 
 
-def _inhalt(pfad: Path) -> bytes:
-    """Der Inhalt, wie Git ihn sieht: ``.gitattributes`` legt ``eol=lf`` fest.
+def _shown(path: Path, root: Path) -> str:
+    return path.relative_to(root).as_posix()
 
-    Ein Arbeitsbaum, der vor dieser Regel ausgecheckt wurde, behaelt CRLF.
-    Byte fuer Byte verglichen, meldete der Abgleich dort einen Unterschied,
-    den Git nicht kennt.
+
+def _content(path: Path) -> bytes:
+    """The content as Git sees it: ``.gitattributes`` sets ``eol=lf``.
+
+    A working tree checked out before that rule keeps CRLF. Compared byte for
+    byte, the check reported a difference there that Git does not know of.
     """
-    return pfad.read_bytes().replace(b"\r\n", b"\n")
+    return path.read_bytes().replace(b"\r\n", b"\n")
 
 
-def abweichungen(root: Path = ROOT) -> list[str]:
-    """Jede Kopie, die fehlt, veraltet oder verwaist ist -- leer, wenn alles gleich ist."""
-    gefunden = []
-    for quelle, kopie in paare(root):
-        if not kopie.exists():
-            gefunden.append(f"fehlt: {_anzeige(kopie, root)}")
-        elif _inhalt(kopie) != _inhalt(quelle):
-            gefunden.append(f"veraltet: {_anzeige(kopie, root)}")
-    gefunden += [f"verwaist: {_anzeige(p, root)}" for p in _verwaist(root)]
-    return gefunden
+def differences(root: Path = ROOT) -> list[str]:
+    """Every copy that is missing, stale or orphaned -- empty when all are equal."""
+    found = []
+    for source, copy in pairs(root):
+        if not copy.exists():
+            found.append(f"missing: {_shown(copy, root)}")
+        elif _content(copy) != _content(source):
+            found.append(f"stale: {_shown(copy, root)}")
+    found += [f"orphaned: {_shown(p, root)}" for p in _orphaned(root)]
+    return found
 
 
-def synchronisiere(root: Path = ROOT) -> list[str]:
-    """Stellt die Gleichheit her und sagt, was sich dafuer geaendert hat."""
-    geaendert = []
-    for quelle, kopie in paare(root):
-        daten = _inhalt(quelle)
-        if kopie.exists() and _inhalt(kopie) == daten:
+def synchronise(root: Path = ROOT) -> list[str]:
+    """Makes the copies equal and says what changed for it."""
+    changed = []
+    for source, copy in pairs(root):
+        data = _content(source)
+        if copy.exists() and _content(copy) == data:
             continue
-        kopie.parent.mkdir(parents=True, exist_ok=True)
-        kopie.write_bytes(daten)
-        geaendert.append(f"kopiert: {_anzeige(kopie, root)}")
-    for pfad in _verwaist(root):
-        pfad.unlink()
-        geaendert.append(f"entfernt: {_anzeige(pfad, root)}")
-    return geaendert
+        copy.parent.mkdir(parents=True, exist_ok=True)
+        copy.write_bytes(data)
+        changed.append(f"copied: {_shown(copy, root)}")
+    for path in _orphaned(root):
+        path.unlink()
+        changed.append(f"removed: {_shown(path, root)}")
+    return changed
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--check", action="store_true",
-                        help="nur pruefen; Exit 1, wenn eine Kopie abweicht")
+                        help="check only; exit 1 when a copy differs")
     if parser.parse_args(argv).check:
-        gefunden = abweichungen()
-        for zeile in gefunden:
-            print(zeile)
-        if gefunden:
-            print("-> python scripts/sync_skill.py behebt es")
-        return 1 if gefunden else 0
-    for zeile in synchronisiere() or ["alles gleich"]:
-        print(zeile)
+        found = differences()
+        for line in found:
+            print(line)
+        if found:
+            print("-> python scripts/sync_skill.py fixes it")
+        return 1 if found else 0
+    for line in synchronise() or ["all equal"]:
+        print(line)
     return 0
 
 

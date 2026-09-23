@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""Baut die ZIP des Skills fuer den Upload zu claude.ai.
+"""Builds the skill's ZIP for the upload to claude.ai.
 
-claude.ai nimmt einen Skill als ZIP, deren Wurzel der Skill-Ordner ist, und
-verlangt eine ``description`` von hoechstens 200 Zeichen (Hilfe-Artikel
-12512198, abgerufen am 11.09.2026). Claude Code erlaubt 1536, die Plattform
-1024: der Einstieg im Repositorium behaelt die lange Fassung mit ihren
-Ausloesern, und die ZIP traegt deren **ersten Satz**. Alles andere ist der
-Ordner, wie er im Repositorium liegt -- eine Quelle, nichts von Hand gepflegt.
+claude.ai takes a skill as a ZIP whose root is the skill folder, and demands a
+``description`` of at most 200 characters (help article 12512198, retrieved
+2026-09-11). Claude Code allows 1536, the platform 1024: the entry point in the
+repository keeps the long version with its triggers, and the ZIP carries its
+**first sentence**. Everything else is the folder as it lies in the repository
+-- one source, nothing maintained by hand.
 
-Was dabei nicht geprueft ist, weil es niemand hier pruefen kann: der Upload
-selbst. Die Hilfe nennt die Datei an einer Stelle ``skill.md``, die
-Plattform-Doku ``SKILL.md``; die ZIP folgt der Plattform.
+What is not checked, because nobody here can check it: the upload itself. The
+help article calls the file ``skill.md`` in one place, the platform
+documentation ``SKILL.md``; the ZIP follows the platform.
 
-Aufruf::
+Usage::
 
-    python scripts/build_skill_zip.py        # schreibt dist/edu-sharing-python.zip
+    python scripts/build_skill_zip.py        # writes dist/edu-sharing-python.zip
 
-``tests/test_skill_bundle.py`` prueft Wurzel, Inhalt, Beschreibung und dass
-zwei Laeufe dieselben Bytes ergeben.
+``tests/test_skill_bundle.py`` checks the root, the content, the description
+and that two runs give the same bytes.
 """
 
 from __future__ import annotations
@@ -29,78 +29,78 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SKILL = ROOT / ".claude" / "skills" / "edu-sharing-python"
-ZIEL = ROOT / "dist" / "edu-sharing-python.zip"
+TARGET = ROOT / "dist" / "edu-sharing-python.zip"
 
-#: Die Grenze von claude.ai fuer die Beschreibung.
-GRENZE = 200
+#: claude.ai's limit for the description.
+LIMIT = 200
 
-#: Ein fester Zeitstempel fuer jeden Eintrag: sonst sieht jede ZIP neu aus,
-#: auch wenn sich nichts geaendert hat. 1980 ist der frueheste, den ZIP kennt.
-ZEITPUNKT = (1980, 1, 1, 0, 0, 0)
+#: One fixed timestamp for every entry: otherwise every ZIP looks new, even
+#: when nothing changed. 1980 is the earliest ZIP knows.
+TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 
-_BESCHREIBUNG = re.compile(r"^description: (.+)$", re.M)
+_DESCRIPTION = re.compile(r"^description: (.+)$", re.M)
 
 
-def kurzbeschreibung(beschreibung: str) -> str:
-    """Der erste Satz -- oder ein Fehler, wenn er die Grenze sprengt.
+def short_description(description: str) -> str:
+    """The first sentence -- or an error when it breaks the limit.
 
-    Abschneiden hiesse, eine Beschreibung mitten im Wort auszuliefern, die
-    ein Modell dann fuer die ganze haelt.
+    Cutting it would ship a description that stops mid-word, and a model then
+    takes it for the whole.
     """
-    satz = beschreibung.split(". ", 1)[0].rstrip(".") + "."
-    if len(satz) > GRENZE:
-        raise ValueError(f"Der erste Satz der description hat {len(satz)} Zeichen, "
-                         f"claude.ai nimmt hoechstens {GRENZE}: kuerzen in SKILL.md.")
-    return satz
+    sentence = description.split(". ", 1)[0].rstrip(".") + "."
+    if len(sentence) > LIMIT:
+        raise ValueError(f"The description's first sentence has {len(sentence)} characters, "
+                         f"claude.ai takes at most {LIMIT}: shorten it in SKILL.md.")
+    return sentence
 
 
-def mit_kurzbeschreibung(skill_md: str) -> str:
-    """``SKILL.md`` mit dem ersten Satz als ``description`` -- sonst unveraendert."""
-    treffer = _BESCHREIBUNG.search(skill_md)
-    if treffer is None:
-        raise ValueError("SKILL.md hat keine einzeilige description in der Frontmatter.")
-    kurz = kurzbeschreibung(treffer.group(1))
-    return skill_md[:treffer.start(1)] + kurz + skill_md[treffer.end(1):]
+def with_short_description(skill_md: str) -> str:
+    """``SKILL.md`` with its first sentence as ``description`` -- otherwise unchanged."""
+    match = _DESCRIPTION.search(skill_md)
+    if match is None:
+        raise ValueError("SKILL.md has no one-line description in its front matter.")
+    short = short_description(match.group(1))
+    return skill_md[:match.start(1)] + short + skill_md[match.end(1):]
 
 
-def dateien(skill: Path = SKILL) -> list[Path]:
-    """Jede Datei des Skill-Ordners, ohne Bytecode -- sortiert nach dem Pfad als
-    Text: Windows vergleicht ``Path`` ohne Gross- und Kleinschreibung, Linux
-    mit, und dieselbe ZIP soll auf beiden dieselben Bytes haben."""
+def files(skill: Path = SKILL) -> list[Path]:
+    """Every file of the skill folder, without bytecode -- sorted by the path as
+    text: Windows compares ``Path`` without case, Linux with it, and the same
+    ZIP is to have the same bytes on both."""
     return sorted((p for p in skill.rglob("*")
                    if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"),
                   key=lambda p: p.relative_to(skill).as_posix())
 
 
-def baue(ziel: Path = ZIEL, skill: Path = SKILL) -> Path:
-    """Schreibt die ZIP und gibt ihren Pfad zurueck.
+def build(target: Path = TARGET, skill: Path = SKILL) -> Path:
+    """Writes the ZIP and returns its path.
 
-    Zeilenenden werden LF, wie Git sie fuehrt (``.gitattributes``): ein
-    Arbeitsbaum mit CRLF soll keine andere ZIP ergeben als einer mit LF.
+    Line endings become LF, as Git keeps them (``.gitattributes``): a working
+    tree with CRLF is not to give another ZIP than one with LF.
     """
-    ziel.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(ziel, "w", compression=zipfile.ZIP_DEFLATED) as z:
-        for pfad in dateien(skill):
-            inhalt = pfad.read_bytes().replace(b"\r\n", b"\n")
-            if pfad == skill / "SKILL.md":
-                inhalt = mit_kurzbeschreibung(inhalt.decode("utf-8")).encode("utf-8")
-            eintrag = zipfile.ZipInfo(f"{skill.name}/{pfad.relative_to(skill).as_posix()}",
-                                      date_time=ZEITPUNKT)
-            eintrag.compress_type = zipfile.ZIP_DEFLATED
-            eintrag.external_attr = 0o644 << 16
-            z.writestr(eintrag, inhalt)
-    return ziel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as z:
+        for path in files(skill):
+            content = path.read_bytes().replace(b"\r\n", b"\n")
+            if path == skill / "SKILL.md":
+                content = with_short_description(content.decode("utf-8")).encode("utf-8")
+            entry = zipfile.ZipInfo(f"{skill.name}/{path.relative_to(skill).as_posix()}",
+                                    date_time=TIMESTAMP)
+            entry.compress_type = zipfile.ZIP_DEFLATED
+            entry.external_attr = 0o644 << 16
+            z.writestr(entry, content)
+    return target
 
 
 def main() -> int:
     try:
-        ziel = baue()
-    except ValueError as fehler:
-        print(fehler, file=sys.stderr)
+        target = build()
+    except ValueError as error:
+        print(error, file=sys.stderr)
         return 1
-    with zipfile.ZipFile(ziel) as z:
-        anzahl = len(z.namelist())
-    print(f"{ziel.relative_to(ROOT).as_posix()}: {anzahl} Dateien, {ziel.stat().st_size} Bytes")
+    with zipfile.ZipFile(target) as z:
+        count = len(z.namelist())
+    print(f"{target.relative_to(ROOT).as_posix()}: {count} files, {target.stat().st_size} bytes")
     return 0
 
 

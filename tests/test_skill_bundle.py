@@ -41,7 +41,7 @@ def _abgleich() -> ModuleType:
 
 def test_die_nachschlagedateien_sind_kopien_der_doku():
     """Zeichen fuer Zeichen -- sonst liest das Modell eine veraltete Referenz."""
-    abweichend = _abgleich().abweichungen(WURZEL)
+    abweichend = _abgleich().differences(WURZEL)
     assert not abweichend, (
         "Der Skill-Ordner weicht von docs/ ab -- `python scripts/sync_skill.py` "
         "behebt es:\n  " + "\n  ".join(abweichend))
@@ -51,7 +51,7 @@ def test_die_abbildung_nimmt_mit_was_der_plan_verlangt():
     """Die Abbildung selbst gegen die Anforderung: beide Sprachen von REFERENCE
     und FLOWS, und jedes Beispiel. Fehlte eine Datei in der Abbildung, waeren
     Skript und Wache sich einig -- und beide falsch."""
-    quellen = {q.relative_to(WURZEL).as_posix() for q, _ in _abgleich().paare(WURZEL)}
+    quellen = {q.relative_to(WURZEL).as_posix() for q, _ in _abgleich().pairs(WURZEL)}
     verlangt = {"docs/REFERENCE.md", "docs/REFERENCE.de.md",
                 "docs/FLOWS.md", "docs/FLOWS.de.md"}
     verlangt |= {p.relative_to(WURZEL).as_posix()
@@ -62,7 +62,7 @@ def test_die_abbildung_nimmt_mit_was_der_plan_verlangt():
 def test_die_kopien_behalten_ihre_namen():
     """``FLOWS.md`` verweist auf ``examples/05_flow_search.py``. Das bleibt nur
     gueltig, wenn die Kopie unter demselben relativen Namen liegt."""
-    for quelle, kopie in _abgleich().paare(WURZEL):
+    for quelle, kopie in _abgleich().pairs(WURZEL):
         von_docs = quelle.relative_to(WURZEL / "docs").as_posix()
         im_skill = kopie.relative_to(
             WURZEL / ".claude" / "skills" / "edu-sharing-python" / "reference").as_posix()
@@ -79,20 +79,20 @@ def test_der_abgleich_sieht_jede_abweichung(tmp_path):
     (tmp_path / "docs" / "examples").mkdir()
     (tmp_path / "docs" / "examples" / "01_a.py").write_text("print(1)\n", encoding="utf-8")
 
-    assert "fehlt: .claude/skills/edu-sharing-python/reference/FLOWS.md" in (
-        abgleich.abweichungen(tmp_path))
-    abgleich.synchronisiere(tmp_path)
-    assert abgleich.abweichungen(tmp_path) == []
+    assert "missing: .claude/skills/edu-sharing-python/reference/FLOWS.md" in (
+        abgleich.differences(tmp_path))
+    abgleich.synchronise(tmp_path)
+    assert abgleich.differences(tmp_path) == []
 
     ziel = tmp_path / ".claude" / "skills" / "edu-sharing-python" / "reference"
     (ziel / "FLOWS.md").write_text("# von Hand geaendert\n", encoding="utf-8")
     (ziel / "examples" / "99_alt.py").write_text("print(99)\n", encoding="utf-8")
-    assert abgleich.abweichungen(tmp_path) == [
-        "veraltet: .claude/skills/edu-sharing-python/reference/FLOWS.md",
-        "verwaist: .claude/skills/edu-sharing-python/reference/examples/99_alt.py",
+    assert abgleich.differences(tmp_path) == [
+        "stale: .claude/skills/edu-sharing-python/reference/FLOWS.md",
+        "orphaned: .claude/skills/edu-sharing-python/reference/examples/99_alt.py",
     ]
-    abgleich.synchronisiere(tmp_path)
-    assert abgleich.abweichungen(tmp_path) == []
+    abgleich.synchronise(tmp_path)
+    assert abgleich.differences(tmp_path) == []
     assert not (ziel / "examples" / "99_alt.py").exists()
 
 
@@ -110,13 +110,13 @@ def test_der_abgleich_vergleicht_wie_git(tmp_path):
         (tmp_path / "docs" / name).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / "docs" / name).write_bytes(b"# Titel\r\nText\r\n")
     (tmp_path / "docs" / "examples").mkdir()
-    abgleich.synchronisiere(tmp_path)
+    abgleich.synchronise(tmp_path)
     kopie = tmp_path / ".claude" / "skills" / "edu-sharing-python" / "reference" / "FLOWS.md"
     assert kopie.read_bytes() == b"# Titel\nText\n", "die Kopie folgt eol=lf"
-    assert abgleich.abweichungen(tmp_path) == []
+    assert abgleich.differences(tmp_path) == []
     kopie.write_bytes(b"# Titel\nAnderer Text\n")
-    assert abgleich.abweichungen(tmp_path) == [
-        "veraltet: .claude/skills/edu-sharing-python/reference/FLOWS.md"]
+    assert abgleich.differences(tmp_path) == [
+        "stale: .claude/skills/edu-sharing-python/reference/FLOWS.md"]
 
 
 # --- Die Vermittlungswache (Plan T3b) ---------------------------------------
@@ -392,18 +392,18 @@ def _zipbau() -> ModuleType:
 
 
 def test_die_zip_hat_den_skill_ordner_als_wurzel_und_alles_darin(tmp_path):
-    ziel = _zipbau().baue(tmp_path / "skill.zip")
+    ziel = _zipbau().build(tmp_path / "skill.zip")
     with zipfile.ZipFile(ziel) as z:
         namen = set(z.namelist())
     erwartet = {f"edu-sharing-python/{p.relative_to(SKILL).as_posix()}"
                 for p in SKILL.rglob("*") if p.is_file() and "__pycache__" not in p.parts}
     assert "edu-sharing-python/SKILL.md" in namen
     assert "edu-sharing-python/reference/REFERENCE.md" in namen
-    assert namen == erwartet, f"fehlt: {erwartet - namen}, zu viel: {namen - erwartet}"
+    assert namen == erwartet, f"missing: {erwartet - namen}, zu viel: {namen - erwartet}"
 
 
 def test_die_zip_traegt_eine_beschreibung_die_claude_ai_nimmt(tmp_path):
-    with zipfile.ZipFile(_zipbau().baue(tmp_path / "skill.zip")) as z:
+    with zipfile.ZipFile(_zipbau().build(tmp_path / "skill.zip")) as z:
         eingepackt = z.read("edu-sharing-python/SKILL.md").decode("utf-8")
     felder = _frontmatter(eingepackt)
     assert felder["name"] == "edu-sharing-python"
@@ -418,13 +418,13 @@ def test_die_zip_traegt_eine_beschreibung_die_claude_ai_nimmt(tmp_path):
 def test_die_kurzbeschreibung_verweigert_einen_zu_langen_ersten_satz():
     """Lieber ein Fehler beim Bauen als eine abgeschnittene Beschreibung."""
     zipbau = _zipbau()
-    assert zipbau.kurzbeschreibung("Kurz genug. Und mehr.") == "Kurz genug."
+    assert zipbau.short_description("Kurz genug. Und mehr.") == "Kurz genug."
     with pytest.raises(ValueError, match="200"):
-        zipbau.kurzbeschreibung("x" * 201 + ". Rest.")
+        zipbau.short_description("x" * 201 + ". Rest.")
 
 
 def test_die_zip_ist_reproduzierbar(tmp_path):
     """Zwei Laeufe, dieselben Bytes -- sonst sieht jede ZIP neu aus."""
     zipbau = _zipbau()
-    assert zipbau.baue(tmp_path / "a.zip").read_bytes() == zipbau.baue(
+    assert zipbau.build(tmp_path / "a.zip").read_bytes() == zipbau.build(
         tmp_path / "b.zip").read_bytes()

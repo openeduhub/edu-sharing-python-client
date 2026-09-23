@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
-"""Erzeugt die generierte Client-Schicht (``src/edusharing/_generated``).
+"""Generates the generated client layer (``src/edusharing/_generated``).
 
-Die edu-sharing-Spec laesst sich NICHT unveraendert generieren: 244 Pfad-Parameter
-tragen einen ``schema.default`` (``-home-``, ``-default-``, ``-userhome-``), und
-sobald danach ein Parameter ohne Default folgt, erzeugt der Generator ungueltiges
+The edu-sharing spec can NOT be generated as it is: 244 path parameters carry
+a ``schema.default`` (``-home-``, ``-default-``, ``-userhome-``), and as soon
+as a parameter without a default follows, the generator writes invalid
 Python::
 
     def _get_kwargs(
-        repository: str = '-home-',     # Default aus der Spec
-        metadataset: str = '-default-', # Default aus der Spec
+        repository: str = '-home-',     # default from the spec
+        metadataset: str = '-default-', # default from the spec
         query: str,                     # <- SyntaxError
     ):
 
-Gemessen gegen edu-sharing 11.0 (Staging, 27.08.2026): ohne diesen Schritt sind
-145 von 1131 erzeugten Dateien syntaktisch kaputt, mit ihm null.
+Measured against edu-sharing 11.0 (staging, 2026-08-27): without this step 145
+of 1131 generated files do not parse, with it none.
 
-Der Default geht dabei nicht verloren -- er ist eine Bequemlichkeit der Web-UI,
-und die Komfortschicht setzt ``-home-`` ohnehin selbst.
+The default is not lost on the way -- it is a convenience of the web UI, and
+the convenience layer sets ``-home-`` itself anyway.
 
-Aufruf::
+Usage::
 
-    python scripts/generate_client.py                     # gegen die Referenz-Spec
-    python scripts/generate_client.py --from-instance URL # gegen eine echte Instanz
+    python scripts/generate_client.py                     # against the reference spec
+    python scripts/generate_client.py --from-instance URL # against a real instance
 """
 
 from __future__ import annotations
@@ -46,13 +46,13 @@ METHODS = ("get", "post", "put", "delete", "patch")
 
 
 def fetch_spec(instance_url: str) -> bytes:
-    """Hole die Spec einer laufenden Instanz. ``swagger.json`` gibt es nicht.
+    """Fetch the spec of a running instance. There is no ``swagger.json``.
 
-    Gibt die Bytes zurueck, wie sie kamen, nicht das geparste Objekt: die
-    Referenz-Spec wird daraus geschrieben, und eine Neufassung durch
-    ``json.dumps`` aenderte alle 45912 Zeilen (Jackson schreibt ``"key" :
-    value``), ohne dass sich am Inhalt etwas geaendert haette. Ein Diff, in
-    dem alles anders ist, sagt nichts mehr (Review 08.09.2026).
+    Returns the bytes as they came, not the parsed object: the reference spec
+    is written from them, and rewriting it through ``json.dumps`` changed all
+    45912 lines (Jackson writes ``"key" : value``) without any change to the
+    content. A diff in which everything differs says nothing any more (review
+    2026-09-08).
     """
     url = instance_url.rstrip("/")
     if not url.endswith("/rest"):
@@ -63,7 +63,7 @@ def fetch_spec(instance_url: str) -> bytes:
 
 
 def strip_path_param_defaults(spec: dict) -> int:
-    """Entferne ``schema.default`` von allen Pfad-Parametern. Gibt die Anzahl zurueck."""
+    """Remove ``schema.default`` from every path parameter. Returns the count."""
     n = 0
     for item in spec.get("paths", {}).values():
         for method, op in item.items():
@@ -76,94 +76,94 @@ def strip_path_param_defaults(spec: dict) -> int:
     return n
 
 
-#: Inhaltstypen, die in der Spec stehen und aus denen der Generator nichts
-#: machen kann. ``application/text`` ist kein gueltiger MIME-Typ, ``*/*`` ist
-#: ein Platzhalter und kein Typ. Der Generator laesst beide schweigend fallen.
+#: Content types that stand in the spec and that the generator can make
+#: nothing of. ``application/text`` is no valid MIME type, ``*/*`` is a
+#: placeholder and not a type. The generator drops both silently.
 #:
-#: Gemessen am 09.09.2026: sieben Antworten, davon zwei **Erfolgsantworten**
-#: -- ``GET .../permissions/jwt`` und ``GET /ltiplatform/v13/content`` hatten
-#: damit gar keinen 200-Zweig, lieferten ``parsed=None`` und warfen mit
-#: ``raise_on_unexpected_status=True`` einen ``UnexpectedStatus`` fuer Status
-#: 200 (Fremdpruefung F15).
-UNBRAUCHBARE_TYPEN = ("application/text", "*/*")
+#: Measured 2026-09-09: seven responses, two of them **successes** --
+#: ``GET .../permissions/jwt`` and ``GET /ltiplatform/v13/content`` had no
+#: 200 branch at all, returned ``parsed=None`` and, with
+#: ``raise_on_unexpected_status=True``, raised an ``UnexpectedStatus`` for
+#: status 200 (external review F15).
+UNUSABLE_TYPES = ("application/text", "*/*")
 
 
-def _zielart(schema: dict) -> str:
-    """Welchen Typ der Generator lesen soll -- entschieden am **Schema**.
+def _target_type(schema: dict) -> str:
+    """Which type the generator is to read -- decided on the **schema**.
 
-    Der deklarierte Inhaltstyp ist an diesen Stellen erfunden; das Schema
-    daneben ist es nicht. ``{"type": "string"}`` ist Text, ein ``$ref`` auf
-    ``ErrorResponse`` ist ein JSON-Objekt.
+    The declared content type is made up in these places; the schema beside
+    it is not. ``{"type": "string"}`` is text, a ``$ref`` to ``ErrorResponse``
+    is a JSON object.
 
-    Blind auf ``text/plain`` abzubilden war der erste Anlauf und tauschte
-    einen Fehler gegen einen anderen: die 400er bis 500er des JWT-Endpunkts
-    bekamen ``ErrorResponse.from_dict(response.text)`` und brachen gemessen
-    mit ``ValueError: dictionary update sequence element #0 has length 1`` ab,
-    wo sie vorher ``None`` gaben.
+    Mapping everything to ``text/plain`` was the first attempt and traded one
+    error for another: the 400s to 500s of the JWT endpoint got
+    ``ErrorResponse.from_dict(response.text)`` and, measured, ended in
+    ``ValueError: dictionary update sequence element #0 has length 1`` where
+    they had given ``None`` before.
     """
     return "text/plain" if schema.get("type") == "string" else "application/json"
 
 
 def normalise_content_types(spec: dict) -> int:
-    """Ersetze unbrauchbare Antwort-Inhaltstypen. Gibt die Anzahl zurueck.
+    """Replace unusable response content types. Returns the count.
 
-    Normalisiert wird die **Spec** im Erzeugungsweg, nicht die erzeugte
-    Datei: an generierten Dateien wird nichts von Hand geaendert.
+    What is normalised is the **spec** on the way to generation, not the
+    generated file: nothing in generated files is changed by hand.
     """
     n = 0
     for item in spec.get("paths", {}).values():
         for method, op in item.items():
             if method not in METHODS:
                 continue
-            for antwort in (op.get("responses") or {}).values():
-                content = antwort.get("content")
+            for response in (op.get("responses") or {}).values():
+                content = response.get("content")
                 if not content:
                     continue
-                for alt in UNBRAUCHBARE_TYPEN:
-                    if alt not in content:
+                for unusable in UNUSABLE_TYPES:
+                    if unusable not in content:
                         continue
-                    ziel = _zielart(content[alt].get("schema") or {})
-                    if ziel in content:
+                    target = _target_type(content[unusable].get("schema") or {})
+                    if target in content:
                         continue
-                    content[ziel] = content.pop(alt)
+                    content[target] = content.pop(unusable)
                     n += 1
     return n
 
 
 def generator_version() -> str:
-    """Welche Fassung des Generators uv.lock festhaelt."""
+    """Which version of the generator uv.lock pins."""
     lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
-    for paket in lock.get("package", []):
-        if paket.get("name") == "openapi-python-client":
-            return str(paket.get("version") or "unbekannt")
-    return "unbekannt"
+    for package in lock.get("package", []):
+        if package.get("name") == "openapi-python-client":
+            return str(package.get("version") or "unknown")
+    return "unknown"
 
 
-def write_provenance(output: Path, spec_bytes: bytes, quelle: str, info: dict) -> None:
-    """Woraus diese Schicht entstanden ist -- neben die Schicht geschrieben.
+def write_provenance(output: Path, spec_bytes: bytes, source: str, info: dict) -> None:
+    """What this layer was made from -- written beside the layer.
 
-    Ohne diese Notiz stand in ``_generated/`` nirgends, welcher Generator und
-    welche Spec die eingecheckten Dateien erzeugt haben. Wer spaeter neu
-    erzeugt, bekommt dann einen Diff, in dem sich Spec-Aenderung und
-    Generator-Aenderung nicht trennen lassen (Audit DEP-2).
+    Without this note nothing in ``_generated/`` said which generator and
+    which spec produced the committed files. Whoever regenerates later then
+    gets a diff in which a change of the spec and a change of the generator
+    cannot be told apart (audit DEP-2).
     """
     (output / "GENERATED.md").write_text(
-        "# Herkunft dieser Schicht\n\n"
-        "Maschinenausgabe. Nicht von Hand aendern -- `scripts/generate_client.py`\n"
-        "schreibt sie samt dieser Notiz neu.\n\n"
-        f"- Generator: `openapi-python-client` {generator_version()} (aus `uv.lock`)\n"
+        "# Provenance of this layer\n\n"
+        "Machine output. Do not edit by hand -- `scripts/generate_client.py`\n"
+        "rewrites it together with this note.\n\n"
+        f"- Generator: `openapi-python-client` {generator_version()} (from `uv.lock`)\n"
         f"- Spec: {info.get('title')} {info.get('version')}\n"
-        f"- Quelle: `{quelle}`\n"
-        f"- SHA-256 der Spec: `{hashlib.sha256(spec_bytes).hexdigest()}`\n\n"
-        "Der Hash gilt fuer die Spec, wie sie gelesen wurde -- vor dem Entfernen\n"
-        "der Pfad-Parameter-Defaults und der Normalisierung der Antwort-Inhaltstypen.\n"
-        "Nach dem Generieren setzt das Skript deterministische ValueError-Pruefungen\n"
-        "fuer leere und vollstaendige Punkt-Pfadsegmente (`.`, `..`) ein.\n",
+        f"- Source: `{source}`\n"
+        f"- SHA-256 of the spec: `{hashlib.sha256(spec_bytes).hexdigest()}`\n\n"
+        "The hash is of the spec as it was read -- before the path parameter\n"
+        "defaults were removed and the response content types normalised.\n"
+        "After generating, the script inserts deterministic ValueError checks\n"
+        "for empty and pure dot path segments (`.`, `..`).\n",
         encoding="utf-8")
 
 
 def verify_syntax(root: Path) -> list[str]:
-    """Jede erzeugte Datei parsen. Der Generator meldet Syntaxfehler nur als Warnung."""
+    """Parse every generated file. The generator reports syntax errors only as warnings."""
     broken = []
     for f in root.rglob("*.py"):
         try:
@@ -222,27 +222,27 @@ def guard_path_parameters(output: Path) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--from-instance", metavar="URL",
-                    help="Spec von einer laufenden Instanz holen statt der Referenz-Spec")
+                    help="fetch the spec from a running instance instead of the reference spec")
     ap.add_argument("--spec", type=Path, default=REFERENCE_SPEC)
     ap.add_argument("--output", type=Path, default=OUTPUT)
     args = ap.parse_args()
 
     if args.from_instance:
-        print(f"hole Spec von {args.from_instance}")
-        # Erst schreiben, dann lesen wie sonst auch. Ohne das Schreiben nannte
-        # GENERATED.md den Hash einer Bytefolge, die es nirgends gab -- nicht
-        # nachpruefbar, und die Herkunftswache in tests/test_dependencies.py
-        # war danach nur von Hand wieder gruen zu bekommen, an einer Datei,
-        # deren erste Zeile "nicht von Hand aendern" sagt (Review 08.09.2026).
+        print(f"fetching the spec from {args.from_instance}")
+        # Write first, then read as always. Without the write, GENERATED.md
+        # named the hash of a byte sequence that existed nowhere -- not
+        # checkable, and the provenance guard in tests/test_dependencies.py
+        # could then only be turned green by hand, in a file whose first lines
+        # say "do not edit by hand" (review 2026-09-08).
         spec_bytes = fetch_spec(args.from_instance)
         args.spec.parent.mkdir(parents=True, exist_ok=True)
         args.spec.write_bytes(spec_bytes)
-        print(f"Referenz-Spec aktualisiert: {args.spec.relative_to(ROOT).as_posix()}")
+        print(f"reference spec updated: {args.spec.relative_to(ROOT).as_posix()}")
         spec = json.loads(spec_bytes.decode("utf-8"))
     else:
         if not args.spec.exists():
-            print(f"Referenz-Spec fehlt: {args.spec}", file=sys.stderr)
-            print("  -> mit --from-instance URL einmalig erzeugen", file=sys.stderr)
+            print(f"reference spec missing: {args.spec}", file=sys.stderr)
+            print("  -> create it once with --from-instance URL", file=sys.stderr)
             return 1
         spec_bytes = args.spec.read_bytes()
         spec = json.loads(spec_bytes.decode("utf-8"))
@@ -250,46 +250,46 @@ def main() -> int:
     info = spec.get("info", {})
     ops = sum(1 for i in spec.get("paths", {}).values() for m in i if m in METHODS)
     print(f"Spec: {info.get('title')} {info.get('version')} "
-          f"| {len(spec.get('paths', {}))} Pfade, {ops} Operationen")
+          f"| {len(spec.get('paths', {}))} paths, {ops} operations")
 
     n = strip_path_param_defaults(spec)
-    print(f"Pfad-Parameter-Defaults entfernt: {n}")
+    print(f"path parameter defaults removed: {n}")
 
     m = normalise_content_types(spec)
-    print(f"Antwort-Inhaltstypen normalisiert: {m}")
+    print(f"response content types normalised: {m}")
 
-    tmp = args.output.parent / "_spec-normalisiert.json"
+    tmp = args.output.parent / "_spec-normalised.json"
     tmp.write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
 
     if args.output.exists():
         shutil.rmtree(args.output)
     args.output.mkdir(parents=True, exist_ok=True)
 
-    # ``uv run`` statt ``uv tool run``: so kommt der Generator aus uv.lock und
-    # nicht die neueste Fassung von PyPI. Eine 141k-Zeilen-Schicht, deren Bau
-    # sich nicht wiederholen laesst, ist ein Blob auf Zuruf -- und ein
-    # unfreiwilliges Update des Generators ergaebe einen Diff, in dem niemand
-    # Spec-Aenderung von Generator-Aenderung trennen kann (Audit DEP-2).
+    # ``uv run`` rather than ``uv tool run``: that way the generator comes from
+    # uv.lock and not as the newest version from PyPI. A 141k-line layer whose
+    # build cannot be repeated is a blob on demand -- and an unintended update
+    # of the generator would give a diff in which nobody can tell a change of
+    # the spec from a change of the generator (audit DEP-2).
     #
-    # ``cwd=ROOT`` ist keine Formsache. Gemessen am 08.09.2026: laeuft der
-    # Generator im Projekt, liest er pyproject.toml -- ``requires-python
-    # >=3.11`` laesst ihn ``typing.Self`` schreiben statt
-    # ``typing_extensions.Self`` (weshalb typing-extensions keine
-    # Abhaengigkeit ist, Audit DEP-1), und ``line-length = 100`` bestimmt die
-    # Formatierung. Ausserhalb des Projekts erzeugt derselbe Generator aus
-    # derselben Spec 556 andere Dateien -- gleicher Inhalt, andere Form.
+    # ``cwd=ROOT`` is no formality. Measured 2026-09-08: run inside the
+    # project, the generator reads pyproject.toml -- ``requires-python
+    # >=3.11`` lets it write ``typing.Self`` instead of
+    # ``typing_extensions.Self`` (which is why typing-extensions is no
+    # dependency, audit DEP-1), and ``line-length = 100`` sets the formatting.
+    # Outside the project the same generator makes 556 different files from
+    # the same spec -- same content, different form.
     cmd = [
         "uv", "run", "openapi-python-client", "generate",
         "--path", str(tmp), "--output-path", str(args.output),
         "--overwrite", "--meta", "none",
     ]
     print("$ " + " ".join(cmd))
-    lauf = subprocess.run(cmd, check=False, cwd=ROOT)
+    run = subprocess.run(cmd, check=False, cwd=ROOT)
     tmp.unlink(missing_ok=True)
-    if lauf.returncode != 0:
-        # Der Rueckgabewert wurde bisher verworfen. Ein gescheiterter Generator
-        # hinterliess damit einen halben Baum und meldete Erfolg.
-        print(f"\nFEHLER: der Generator endete mit {lauf.returncode}.",
+    if run.returncode != 0:
+        # The return code used to be discarded. A failed generator then left
+        # half a tree behind and reported success.
+        print(f"\nERROR: the generator exited with {run.returncode}.",
               file=sys.stderr)
         return 1
 
@@ -298,20 +298,20 @@ def main() -> int:
     broken = verify_syntax(args.output)
     total = sum(1 for _ in args.output.rglob("*.py"))
     if broken:
-        print(f"\nFEHLER: {len(broken)} von {total} Dateien syntaktisch kaputt:",
+        print(f"\nERROR: {len(broken)} of {total} files do not parse:",
               file=sys.stderr)
         for b in broken[:20]:
             print("   ", b, file=sys.stderr)
         return 1
 
-    # posix: die Notiz wird eingecheckt und darf nicht nach Windows aussehen.
-    # Auch bei --from-instance zeigt sie auf die Datei, denn dort steht jetzt,
-    # was gehasht wurde; die Adresse steht daneben.
-    quelle = args.spec.relative_to(ROOT).as_posix()
+    # posix: the note is committed and must not look like Windows. With
+    # --from-instance it points at the file too, for that is what was hashed
+    # now; the address stands beside it.
+    source = args.spec.relative_to(ROOT).as_posix()
     if args.from_instance:
-        quelle += f" (geholt von {args.from_instance})"
-    write_provenance(args.output, spec_bytes, quelle, info)
-    print(f"\nOK: {total} Dateien, keine Syntaxfehler.")
+        source += f" (fetched from {args.from_instance})"
+    write_provenance(args.output, spec_bytes, source, info)
+    print(f"\nOK: {total} files, no syntax errors.")
     return 0
 
 

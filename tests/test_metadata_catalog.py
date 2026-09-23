@@ -185,6 +185,33 @@ async def test_an_unusable_locale_is_refused_before_the_request(locale):
     assert backend.calls == []
 
 
+#: Every call that puts ``locale`` into a header.
+_WITH_LOCALE = {
+    "search": lambda repo, locale: repo.search("x", locale=locale),
+    "find_collections": lambda repo, locale: repo.find_collections("x", locale=locale),
+    "vocab.values": lambda repo, locale: repo.vocab.values("acme:subject", locale=locale),
+    "vocab.suggest": lambda repo, locale: repo.vocab.suggest("acme:subject", "Sp",
+                                                             locale=locale),
+    "vocab.resolve": lambda repo, locale: repo.vocab.resolve("acme:subject", "Space",
+                                                             locale=locale),
+}
+
+
+@pytest.mark.parametrize("where", sorted(_WITH_LOCALE))
+@pytest.mark.parametrize("locale", ["de DE", "de_DE\r\nX-Injected: 1"])
+async def test_every_locale_header_is_checked_before_the_request(where, locale):
+    """Audit API-23-2 (2026-09-23): API-20-1 was fixed in ``metadata`` alone,
+    and three more modules put ``locale`` into a header unchecked -- a value
+    with a line break came back as a TransportError after the retry budget,
+    not as the ValidationError it is. The rule is one, so the test covers
+    every door to it."""
+    backend = Backend()
+    async with backend.repo() as repo:
+        with pytest.raises(ValidationError):
+            await _WITH_LOCALE[where](repo, locale)
+    assert backend.calls == []
+
+
 async def test_the_returned_definition_is_independent_deep_down():
     """The isolation promise covers nested values, not just the top level --
     the copy is what a call costs, so what it buys is pinned here."""

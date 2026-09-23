@@ -827,7 +827,7 @@ Fehlt eine angeforderte Schreibrolle, folgt `ValidationError` vor dem Schreiben.
 | `repo.vocab.preload(properties, locale=…, concurrency=…)` | `dict[str, list[VocabularyValue]]`; standardmäßig 8 parallele Ladevorgänge, je Eigenschaft nur einmal |
 | `repo.vocab.label(prop, value, locale=…)` | Label eines exakten gespeicherten Schlüssels oder `None` |
 | `repo.vocab.snapshot(scope=…)` | JSON-kompatibles `dict` aller frischen Cache-Einträge |
-| `repo.vocab.restore(snapshot, scope=…)` | `int`; Anzahl übernommener Einträge; ersetzt den Cache erst nach vollständiger Prüfung |
+| `repo.vocab.restore(snapshot, scope=…)` | `int`; Anzahl der danach gehaltenen Einträge — höchstens `MAX_CACHED_VOCABULARIES`; ersetzt den Cache erst nach vollständiger Prüfung |
 | `repo.collections.add_reference(collection_id, node_id)` | `{created, reference_id}`; bei bestehender Zuordnung (409) ist die Referenz-ID unbekannt: `None` |
 | `repo.flows.place_material(node_id, collection_id, publish=…, remove_from=…)` | `{input_id, original_id, collection_id, reference_id, created, placed, public, removed_from, failed}` |
 | `repo.flows.collection_context(collection_id, limit=…, properties=…, include_registry=…, registry_conventions=…, registry_context=…)` | `{collection, contents, stats, compendium, registry, failed, loaded_at}` |
@@ -843,6 +843,10 @@ Auch `values()` gibt unabhängige Listen zurück. Exakte bekannte URNs/Codes
 haben Vorrang vor gleichnamigen Labels; unbekannte Rohwerte explizit über
 `raw_filters` suchen oder `properties` schreiben.
 
+Eine `locale`, die kein Sprachkürzel ist (`de_DE`, `en`), ist ein
+`ValidationError`, bevor etwas gesendet wird — in der Suche, der
+Sammlungssuche, beim Vokabular und beim Metadatensatz gleichermaßen; welche
+Sprachen es gibt, entscheidet die Instanz.
 Die Suchoptionen `locale`, `raw_filters` und `strict=True` gelten auch beim
 optionalen lokalen `rerank=True`; Mehrdeutigkeit bei der Suche nimmt alle
 passenden Schlüssel, unbekannte Labels werden mit `strict=True` abgewiesen.
@@ -866,7 +870,7 @@ weiteren MDS-Installationen steht noch aus.
 
 | Aufruf | Ergebnis |
 |---|---|
-| `repo.vocab.values(prop, locale=…)` | `list[VocabularyValue]` — gemerkt für `DEFAULT_CACHE_SECONDS` (1 h); `repo.vocab.cache_seconds` setzt eine andere Frist, `0` schaltet ab, `float("inf")` behält für immer |
+| `repo.vocab.values(prop, locale=…)` | `list[VocabularyValue]` — gemerkt für `DEFAULT_CACHE_SECONDS` (1 h); `repo.vocab.cache_seconds` setzt eine andere Frist, `0` schaltet ab, `float("inf")` behält für immer. Höchstens `MAX_CACHED_VOCABULARIES` (64) Paare aus Feld und Sprache bleiben, das am längsten nicht gebrauchte weicht zuerst |
 | `DEFAULT_CACHE_SECONDS` | `3600.0` — wie lange ein geladenes Vokabular gilt |
 | `SUGGEST_LOOKUP_MAX` | `10` — unauflösbare Filterwerte, für die Vorschläge geholt werden; darüber wird der Wert weiterhin gemeldet, nur ohne sie |
 | `repo.vocab.suggest(prop, text, locale=…)` | `list[VocabularyValue]` — Teilzeichenkette, nicht gemerkt |

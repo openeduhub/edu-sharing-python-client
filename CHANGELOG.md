@@ -80,6 +80,17 @@ and in [`docs/audits/`](docs/audits/).
   later call answer "no content types", and `content_type_for` `None` for
   every URI, for the life of the object -- the class MNT-20-1 fixed for the
   b-api model cache (audit MNT-23-1).
+- **Every `locale` is checked before it goes into a header, and the
+  vocabulary cache has a bound.** API-20-1 and PRF-20-2 checked and bounded
+  `locale` in `repo.metadata` alone. The search, the collection search and the
+  vocabulary sent it unchecked -- a line break came back as a `TransportError`
+  after the retry budget instead of a `ValidationError` -- and the vocabulary
+  kept one entry and one lock per field and language, never removing an
+  expired one. Now all five doors check the shape before anything is sent,
+  and at most `MAX_CACHED_VOCABULARIES` (64) vocabularies stay, the least
+  recently used giving way; measured 2026-09-23, the largest in `mds_oeh`
+  holds 416 values, roughly 80 KiB. `restore()` keeps the bound as well and
+  returns how many entries it holds (audit API-23-2).
 
 ## [0.3.5] — 2026-09-21
 

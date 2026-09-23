@@ -806,7 +806,7 @@ A requested but unconfigured write role raises `ValidationError` before writing.
 | `repo.vocab.preload(properties, locale=…, concurrency=…)` | `dict[str, list[VocabularyValue]]`; 8 concurrent loads by default, each property loaded once |
 | `repo.vocab.label(prop, value, locale=…)` | Label for an exact stored key, or `None` |
 | `repo.vocab.snapshot(scope=…)` | JSON-compatible `dict` of fresh cache entries |
-| `repo.vocab.restore(snapshot, scope=…)` | `int`; Number of restored entries; replaces the cache only after complete validation |
+| `repo.vocab.restore(snapshot, scope=…)` | `int`; Number of entries held afterwards — at most `MAX_CACHED_VOCABULARIES`; replaces the cache only after complete validation |
 | `repo.collections.add_reference(collection_id, node_id)` | `{created, reference_id}`; on an existing placement (409), the reference id is unknown: `None` |
 | `repo.flows.place_material(node_id, collection_id, publish=…, remove_from=…)` | `{input_id, original_id, collection_id, reference_id, created, placed, public, removed_from, failed}` |
 | `repo.flows.collection_context(collection_id, limit=…, properties=…, include_registry=…, registry_conventions=…, registry_context=…)` | `{collection, contents, stats, compendium, registry, failed, loaded_at}` |
@@ -821,6 +821,9 @@ are omitted. The API writes no files; an application may persist the JSON itself
 over matching labels; search unknown raw values through `raw_filters`, or write
 them through `properties`.
 
+A `locale` that is not a language tag (`de_DE`, `en`) is a `ValidationError`
+before anything is sent — in the search, the collection search, the vocabulary
+and the metadata set alike; which languages exist is the instance's business.
 Search options `locale`, `raw_filters` and `strict=True` also apply with the
 optional local `rerank=True`. Ambiguous search labels include all matching keys;
 unknown labels are rejected with `strict=True`. Overlapping raw and label filters
@@ -842,7 +845,7 @@ HTTP-mock coverage; live acceptance on additional MDS installations is pending.
 
 | Call | Result |
 |---|---|
-| `repo.vocab.values(prop, locale=…)` | `list[VocabularyValue]` — cached for `DEFAULT_CACHE_SECONDS` (1 h); set `repo.vocab.cache_seconds` for another span, `0` to disable, `float("inf")` to keep forever |
+| `repo.vocab.values(prop, locale=…)` | `list[VocabularyValue]` — cached for `DEFAULT_CACHE_SECONDS` (1 h); set `repo.vocab.cache_seconds` for another span, `0` to disable, `float("inf")` to keep forever. At most `MAX_CACHED_VOCABULARIES` (64) field/language pairs stay, the least recently used giving way |
 | `DEFAULT_CACHE_SECONDS` | `3600.0` — how long a loaded vocabulary stays valid |
 | `SUGGEST_LOOKUP_MAX` | `10` — unresolved filter values that get suggestions looked up; beyond it the value is still reported, without them |
 | `repo.vocab.suggest(prop, text, locale=…)` | `list[VocabularyValue]` — substring, not cached |

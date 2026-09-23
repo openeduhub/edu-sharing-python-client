@@ -29,6 +29,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from . import vocab_snapshots
+from ._checks import check_locale
 from .errors import ValidationError, at_least
 from .transport import Transport
 from .urls import path_segment
@@ -47,6 +48,17 @@ DEFAULT_QUERY = "ngsearch"
 #: the same value the b-api exports as ``CACHE_FOREVER``, right for a
 #: script that ends before any vocabulary could change.
 DEFAULT_CACHE_SECONDS = 3600.0
+
+#: How many vocabularies -- one per field and language -- stay in memory, the
+#: least recently used giving way first. Nothing bounded it before: a service
+#: forwarding its visitors' language held one vocabulary per visitor, and an
+#: expired entry was never removed, only replaced (audit API-23-2; PRF-20-2
+#: bounded the metadata set the same way). Measured 2026-09-23 against staging
+#: (``mds_oeh``): the largest, ``ccm:taxonid``, has 416 values, roughly 80 KiB
+#: once loaded; most fields hold under 50 KiB. A search asks five fields, a
+#: curation flow about a dozen -- 64 leaves room for several languages and
+#: bounds the worst case near 5 MiB.
+MAX_CACHED_VOCABULARIES = 64
 
 #: ``pattern`` meaning "all values" -- see the module docstring.
 _ALL = ""
@@ -105,11 +117,16 @@ class Vocabulary:
 
         Args:
             prop: property name, e.g. ``ccm:taxonid``.
-            locale: label language, e.g. ``en_EN``. Cached separately.
+            locale: label language, e.g. ``en_EN``. Cached separately, and
+                at most ``MAX_CACHED_VOCABULARIES`` entries are kept.
 
         Returns:
             An empty list when the property has no vocabulary.
+
+        Raises:
+            ValidationError: for a locale that is not a language tag.
         """
+        check_locale(locale)
         key = (prop, locale)
         fresh = self._fresh(key)
         if fresh is not None:
@@ -118,34 +135,72 @@ class Vocabulary:
         # Without a lock, concurrent access loads the same vocabulary once per
         # caller -- during a fan-out, many times over.
         lock = self._locks.setdefault(key, asyncio.Lock())
-        async with lock:
-            # Checked again: whoever held the lock may have just filled it.
-            fresh = self._fresh(key)
-            if fresh is not None:
-                return fresh
-            # Read **before** the await: whoever clears while this request
-            # is in flight clears something this fetch predates, and
-            # writing it afterwards would put the old values back into the
-            # emptied cache -- so whoever cleared because the vocabulary
-            # changed would go on working with the old one, unknowingly
-            # (audit COR-6).
-            generation = self._generation
-            values = await self._fetch(prop, _ALL, locale)
-            if generation == self._generation:
-                self._cache[key] = (time.monotonic(), values)
-            return list(values)
+        try:
+            async with lock:
+                # Checked again: whoever held the lock may have just filled it.
+                fresh = self._fresh(key)
+                if fresh is not None:
+                    return fresh
+                # Read **before** the await: whoever clears while this request
+                # is in flight clears something this fetch predates, and
+                # writing it afterwards would put the old values back into the
+                # emptied cache -- so whoever cleared because the vocabulary
+                # changed would go on working with the old one, unknowingly
+                # (audit COR-6).
+                generation = self._generation
+                values = await self._fetch(prop, _ALL, locale)
+                if generation == self._generation:
+                    self._remember(key, values)
+                return list(values)
+        finally:
+            # After the release, not before it: a held lock is never dropped,
+            # and the one just released goes if its entry did not stay.
+            self._forget_unused_locks()
 
     def _fresh(
         self, key: tuple[str, str | None]
     ) -> list[VocabularyValue] | None:
-        """The cached values while they are still valid, otherwise ``None``."""
+        """The cached values while they are still valid, otherwise ``None``.
+
+        A hit moves the entry to the back of the line, so the bound evicts the
+        least recently used vocabulary rather than the first one loaded --
+        otherwise the most asked-for field would be fetched again in turn.
+        """
         entry = self._cache.get(key)
         if entry is None:
             return None
         loaded_at, values = entry
         if time.monotonic() - loaded_at >= self.cache_seconds:
             return None
+        self._cache[key] = self._cache.pop(key)
         return list(values)
+
+    def _remember(self, key: tuple[str, str | None],
+                  values: list[VocabularyValue]) -> None:
+        """Keep one vocabulary, then drop what no longer stays."""
+        self._cache.pop(key, None)
+        self._cache[key] = (time.monotonic(), values)
+        self._trim()
+
+    def _trim(self) -> None:
+        """Drop expired entries, then the least recently used past the bound."""
+        now = time.monotonic()
+        for key in [k for k, (loaded_at, _) in self._cache.items()
+                    if now - loaded_at >= self.cache_seconds]:
+            del self._cache[key]
+        while len(self._cache) > MAX_CACHED_VOCABULARIES:
+            del self._cache[next(iter(self._cache))]
+
+    def _forget_unused_locks(self) -> None:
+        """Drop the locks of vocabularies no longer cached -- except a held one.
+
+        A lock taken from an in-flight load is released by nobody the next
+        caller can see, and that caller fetches a second time -- the reason
+        ``metadata`` keeps the same rule.
+        """
+        for key in [k for k, lock in self._locks.items()
+                    if k not in self._cache and not lock.locked()]:
+            del self._locks[key]
 
     async def suggest(
         self, prop: str, text: str, *, locale: str | None = None
@@ -158,7 +213,11 @@ class Vocabulary:
 
         Not cached: every input is its own request, and a cache over that would
         only fill memory.
+
+        Raises:
+            ValidationError: for a locale that is not a language tag.
         """
+        check_locale(locale)
         return await self._fetch(prop, text, locale)
 
     async def resolve(
@@ -269,17 +328,21 @@ class Vocabulary:
         return vocab_snapshots.snapshot(self._cache, identity, self.cache_seconds)
 
     def restore(self, snapshot: dict[str, Any], *, scope: str) -> int:
-        """Replace the cache from a matching snapshot and return its fresh entry count.
+        """Replace the cache from a matching snapshot and return how many fresh
+        entries it now holds.
 
         Rejects a different repository/MDS/query/scope or malformed data without
-        changing the cache. Expired entries are discarded, not made fresh again.
+        changing the cache. Expired entries are discarded, not made fresh again,
+        and a snapshot larger than ``MAX_CACHED_VOCABULARIES`` keeps only that
+        many -- the bound holds on every way into the cache.
         """
         identity = vocab_snapshots.context(self._transport.repository_url,
                                            self.metadataset, self.query, scope)
         restored = vocab_snapshots.restore(snapshot, identity, self.cache_seconds)
         self.clear_cache()
         self._cache.update(restored)
-        return len(restored)
+        self._trim()
+        return len(self._cache)
 
     # --- Internals --------------------------------------------------------
 

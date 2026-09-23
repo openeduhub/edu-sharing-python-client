@@ -35,6 +35,7 @@ import asyncio
 from itertools import zip_longest
 from typing import Any
 
+from ._checks import check_locale
 from .dto import node_id_of, stored_title_of
 from .errors import ConflictError, EduSharingError, SilentDropError
 from .nodes import Node, Nodes
@@ -117,7 +118,12 @@ class Collections:
             A ``SearchResult`` with at most ``limit`` hits and
             ``total_is_lower_bound=True``. ``total`` counts the merge before the
             cut: the cap says how much comes back, not how much there is.
+
+        Raises:
+            ValidationError: for a locale that is not a language tag -- checked
+                here, before either route is asked.
         """
+        check_locale(locale)
         leg_a, leg_b = await asyncio.gather(
             self._mds_leg(text, limit, locale),
             self._rest_leg(text, limit, locale),

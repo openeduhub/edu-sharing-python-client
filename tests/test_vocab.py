@@ -14,7 +14,7 @@ import pytest
 
 from edusharing.errors import EduSharingError
 from edusharing.transport import Transport
-from edusharing.vocab import Vocabulary
+from edusharing.vocab import MAX_CACHED_VOCABULARIES, Vocabulary
 
 REPO = "https://repositorium.example.test/edu-sharing"
 
@@ -221,6 +221,62 @@ async def test_fehler_wird_nicht_gecacht():
 
 
 # --- Aufraeumen -----------------------------------------------------------
+
+async def test_der_cache_waechst_nicht_ohne_grenze():
+    """Audit API-23-2 (23.09.2026): ein Eintrag und eine Sperre je Paar aus
+    Feld und Sprache, nie entfernt -- ein Dienst, der die Sprache seiner
+    Besucher weiterreicht, hielt ein Vokabular je Besucher. PRF-20-2 hat
+    dasselbe am 20.09. fuer den Metadatensatz begrenzt; hier fehlte es."""
+    v = _vocab(_liefert(FAECHER))
+    for nummer in range(MAX_CACHED_VOCABULARIES + 10):
+        await v.values(f"ccm:feld{nummer}", locale="de_DE")
+    assert len(v._cache) == MAX_CACHED_VOCABULARIES
+    assert len(v._locks) <= MAX_CACHED_VOCABULARIES
+
+
+async def test_ein_eben_gebrauchtes_vokabular_bleibt():
+    """Weichen muss das am laengsten nicht gebrauchte, nicht das zuerst
+    geladene: das meistgefragte Feld wuerde sonst zyklisch neu geholt."""
+    aufrufe: list = []
+    v = _vocab(_liefert(FAECHER, aufrufe))
+    await v.values("ccm:taxonid")
+    for nummer in range(MAX_CACHED_VOCABULARIES - 1):
+        await v.values(f"ccm:feld{nummer}")
+    await v.values("ccm:taxonid")              # gebraucht -- also nach vorn
+    await v.values("ccm:noch_eins")            # verdraengt jetzt ein anderes
+    vorher = len(aufrufe)
+    await v.values("ccm:taxonid")
+    assert len(aufrufe) == vorher, "das eben gebrauchte Vokabular wurde verdraengt"
+
+
+def test_auch_ein_grosser_schnappschuss_haelt_die_grenze():
+    """Die Grenze gilt auf jedem Weg in den Cache, auch ueber ``restore`` --
+    ein Schnappschuss kann aus einem anderen Prozess stammen."""
+    import time
+
+    from edusharing import vocab_snapshots
+
+    v = _vocab(_liefert(FAECHER))
+    identitaet = vocab_snapshots.context(REPO, v.metadataset, v.query, "public")
+    jetzt = time.time()
+    schnappschuss = {"version": 1, "context": identitaet, "entries": [
+        {"property": f"ccm:feld{nummer}", "locale": None, "loaded_at": jetzt,
+         "values": [{"value": "urn:x", "label": "X"}]}
+        for nummer in range(MAX_CACHED_VOCABULARIES + 5)]}
+    assert v.restore(schnappschuss, scope="public") == MAX_CACHED_VOCABULARIES
+    assert len(v._cache) == MAX_CACHED_VOCABULARIES
+
+
+async def test_abgelaufene_eintraege_werden_nicht_aufbewahrt():
+    """Ein Eintrag, der nicht mehr gilt, wurde nie entfernt, nur ersetzt, wenn
+    dasselbe Feld wieder gefragt wurde. Mit ``cache_seconds=0`` wuchs so ein
+    abgeschalteter Cache mit jedem Feld."""
+    v = _vocab(_liefert(FAECHER), cache_seconds=0)
+    for nummer in range(5):
+        await v.values(f"ccm:feld{nummer}")
+    assert v._cache == {}
+    assert v._locks == {}
+
 
 async def test_clear_cache_raeumt_auch_die_sperren():
     """Audit-Befund F6 vom 27.08.2026: clear_cache() leerte den Cache, liess die

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from ._checks import check_locale
 from .errors import ValidationError
 from .profile import WLO_METADATA_PROFILE, MetadataProfile
 from .results import (
@@ -149,8 +150,10 @@ class Search:
 
         Raises:
             ValidationError: for a short name ``field_aliases`` does not know --
-                a typo must not pass as "no constraint".
+                a typo must not pass as "no constraint" -- and for a locale
+                that is not a language tag.
         """
+        check_locale(locale)
         criteria, unresolved = await self._prepare_filters(
             filters, raw_filters, aliases, locale=locale, strict=strict)
         if text:

@@ -199,10 +199,13 @@ and in [`docs/audits/`](docs/audits/).
   regenerates and diffs them would fail if the tool moved without them.
   `ruff` went 0.16.4 to 0.16.8 and four pinned GitHub Actions moved with it;
   the suite is 2 764 passed either way.
-- The blank-line rules E301-E306 are on. They are preview rules in ruff 0.16,
-  so selecting "E" never included them, and four slips in `src/` stood
-  unnoticed; switched on, they found 25 across the repository, all fixed,
-  whitespace only. `explicit-preview-rules` keeps preview to those six codes.
+- The blank-line rules E301-E306 are checked. They are preview rules in ruff
+  0.16, so selecting "E" never included them, and four slips in `src/` stood
+  unnoticed; checked, they found 25 across the repository, all fixed,
+  whitespace only. They run in `tests/test_blank_lines.py` with preview for
+  those six codes alone: switched on in `pyproject.toml`, preview also changed
+  how stable rules fix code, the generator's own ruff pass reads that file,
+  and CI's regeneration check failed on 31 differently formatted files.
 
 ### Documentation
 

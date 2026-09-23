@@ -92,16 +92,12 @@ src = ["src"]
 extend-exclude = ["src/edusharing/_generated"]
 
 [tool.ruff.lint]
-# The blank-line rules E301-E306 are preview rules in ruff 0.16, so "E" alone
-# never selected them, and four slips in ``src/`` went unnoticed (audit
-# 2026-09-23). ``explicit-preview-rules`` keeps preview to exactly the codes
-# named below: measured, it adds no finding to any other selected rule. A ruff
-# update may still move a preview rule -- then this is where to look.
-preview = true
-explicit-preview-rules = true
+# No ``preview`` here. The blank-line rules E301-E306 exist only in preview in
+# ruff 0.16, and switching preview on changed how stable rules fix code -- the
+# generator's own ruff pass reads this file, and 31 generated files came out
+# differently. The six rules run in tests/test_blank_lines.py instead.
 select = [
     "E", "W",    # pycodestyle
-    "E301", "E302", "E303", "E304", "E305", "E306",  # blank lines (preview)
     "F",         # pyflakes
     "I",         # import order
     "UP",        # outdated spellings

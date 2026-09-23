@@ -1804,7 +1804,7 @@ dieser Bibliothek liest zurück und wirft ihn, statt Erfolg zu melden.
 |---|---|
 | `error_from_response(status, url, body)` | wählt die Klasse zu einem Statuscode |
 | `details_withheld(error)` | `bool` — die Instanz verschweigt ihre Fehlerdetails |
-| `at_least(name, value, limit)` | die Grenzprüfung für die **stetigen** Einstellungen — Sekunden, ein Backoff-Schritt; wirft `EduSharingError` mit dem Namen der Einstellung |
+| `at_least(name, value, limit, infinite=False)` | die Grenzprüfung für die **stetigen** Einstellungen — Sekunden, ein Backoff-Schritt; wirft `EduSharingError` mit dem Namen der Einstellung. Endlich, außer mit `infinite=True`, das nur die drei Cache-Dauern übergeben (`CACHE_FOREVER`) |
 | `whole_number(name, value, limit)` | dasselbe für eine Einstellung, die **zählt** — `max_concurrency`, `max_retries`, `retries_before_switching`. Eine Bruchzahl wird abgelehnt, `2.0` eingeschlossen: `asyncio.Semaphore(1.5)` erreicht die Null nie, an der sie blockiert, die Grenze begrenzte also still nichts mehr |
 | `check_client(client, timeout=…)` | die vier Regeln für einen mitgebrachten `httpx.AsyncClient`: kein `timeout` daneben, kein `follow_redirects=True`, keine eigenen Zugangsdaten (weder `auth=` noch eine Vorgabe-Kopfzeile über die vier hinaus, die httpx selbst setzt), und keine Cookies im Speicher |
 | `redirect_error(status, location, url, service=…, env_var=…)` | der 3xx, den alle vier Clients melden statt ihm zu folgen. Die Meldung nennt nur den Zielhost; die ganze `Location` steht als `.location` an der Ausnahme |
@@ -1839,7 +1839,7 @@ sind.
 | `Transport` | die HTTP-Schicht: Wiederholungen, Wartezeiten, Zugangsdaten-Grenze |
 | `Transport.is_repository_url(url)` | `bool` |
 | `RetryPolicy(max_retries=…, backoff_base=…, max_retry_after=…)` | die eine Wiederholungs-Regel der drei Clients |
-| `RetryPolicy.delay(attempt, retry_after=…)` | `float \| None` — Sekunden Wartezeit; `None`, wenn sie zu lang zum Abwarten ist |
+| `RetryPolicy.delay(attempt, retry_after=…)` | `float \| None` — Sekunden Wartezeit, nie mehr als `max_retry_after`; `None`, wenn der Dienst länger verlangt hat |
 | `RETRYABLE_STATUS` | `{429, 500, 502, 503, 504}` — die Status, die die beiden Nachbardienste erneut versuchen |
 | `DEFAULT_MAX_RETRY_AFTER` | `60.0` — die längste vom Dienst genannte Wartezeit, die noch abgewartet wird |
 | `parse_retry_after(value)` | `float \| None` — liest einen `Retry-After`-Kopf, Sekunden oder HTTP-Datum |
@@ -1851,7 +1851,9 @@ längste vom Dienst genannte Wartezeit, die noch abgewartet wird
 (`max_retry_after`, 60 s). Die Pause streut — zwischen halbem und vollem
 Schritt —, weil sonst acht Aufrufe einer Fan-out-Welle denselben 503 treffen
 und in derselben Millisekunde zurückkommen. Ein `Retry-After` schlägt diese
-Kurve und wird nie unterschritten. Was jeder Client weiterhin selbst
+Kurve und wird nie unterschritten. Bei `max_retry_after` hört auch die Kurve
+auf zu wachsen: länger ist eine Wartezeit ein Aufhänger, und `max_retries=12`
+wartete früher bis zu 34 Minuten insgesamt. Was jeder Client weiterhin selbst
 entscheidet, ist, *welcher* Fehlschlag einen weiteren Versuch verdient: der
 Transport nach Fehlertyp, weil ein edu-sharing-500 „nicht angemeldet" heißen
 kann, die Nachbardienste nach `RETRYABLE_STATUS`.

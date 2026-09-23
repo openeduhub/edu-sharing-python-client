@@ -15,6 +15,7 @@ from edusharing.errors import (
     PermissionDeniedError,
     ServerError,
     ValidationError,
+    at_least,
     error_from_response,
     redirect_error,
 )
@@ -322,3 +323,22 @@ def test_ohne_location_bleibt_es_bei_none():
     assert fehler.location is None
     assert "without a Location header" in str(fehler)
     assert "`.location`" not in str(fehler), "es gibt nichts nachzulesen"
+
+
+# --- at_least: die Endlichkeit (Audit API-23-3) -----------------------------
+
+def test_at_least_lehnt_unendlich_ab():
+    """Der Docstring sagte "Typ und Endlichkeit werden geprueft" -- geprueft
+    wurde nan. ``Transport(url, timeout=inf)`` gab ``Timeout(timeout=inf)``,
+    einen Aufruf, der nie aufgibt."""
+    with pytest.raises(EduSharingError, match="timeout"):
+        at_least("timeout", float("inf"), 0.001)
+
+
+def test_at_least_erlaubt_unendlich_nur_wo_es_gesagt_wird():
+    """``CACHE_FOREVER`` ist ``float("inf")`` -- dort ist Unendlich die
+    Aussage, und der Aufrufer sagt es. Minus unendlich bleibt unter jeder
+    Grenze."""
+    at_least("cache_seconds", float("inf"), 0, infinite=True)
+    with pytest.raises(EduSharingError):
+        at_least("cache_seconds", float("-inf"), 0, infinite=True)

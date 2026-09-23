@@ -34,7 +34,7 @@ class MetadataCatalog:
 
     def __init__(self, transport: Transport, *, metadataset: str = DEFAULT_METADATASET,
                  cache_seconds: float = DEFAULT_CACHE_SECONDS) -> None:
-        at_least("cache_seconds", cache_seconds, 0)
+        at_least("cache_seconds", cache_seconds, 0, infinite=True)
         self._transport = transport
         self.metadataset = metadataset
         self.cache_seconds = cache_seconds

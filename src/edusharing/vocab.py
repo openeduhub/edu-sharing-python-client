@@ -88,7 +88,7 @@ class Vocabulary:
         query: str = DEFAULT_QUERY,
         cache_seconds: float = DEFAULT_CACHE_SECONDS,
     ) -> None:
-        at_least("cache_seconds", cache_seconds, 0)
+        at_least("cache_seconds", cache_seconds, 0, infinite=True)
         self._transport = transport
         self.metadataset = metadataset
         self.query = query

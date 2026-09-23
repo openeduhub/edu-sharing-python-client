@@ -73,7 +73,8 @@ class RetryPolicy:
     Attributes:
         max_retries: attempts after the first one.
         backoff_base: the first step; every further one doubles it.
-        max_retry_after: the longest ``Retry-After`` still waited out.
+        max_retry_after: the longest wait: a longer ``Retry-After`` is not
+            waited out, and the backoff stops growing here.
     """
 
     max_retries: int = 3
@@ -98,10 +99,16 @@ class RetryPolicy:
         the lockstep goes. A ``Retry-After`` is never undercut — the jitter
         only ever adds to it — because coming back earlier than the server
         said is exactly what the 429 exists to prevent.
+
+        Never longer than ``max_retry_after``, the line past which a wait is a
+        hang. The backoff doubled without it: ``max_retries=12`` waited up to
+        17 minutes before the last attempt and 34 in all (audit API-23-3).
         """
         if retry_after is not None:
             if retry_after > self.max_retry_after:
                 return None
-            return retry_after + random() * self.backoff_base
-        full = self.backoff_base * 2.0 ** (attempt - 1)
+            return min(retry_after + random() * self.backoff_base, self.max_retry_after)
+        # The exponent stops at 1023: past it the power raises OverflowError,
+        # where the product merely becomes inf -- and ``min`` settles that.
+        full = min(self.backoff_base * 2.0 ** min(attempt - 1, 1023), self.max_retry_after)
         return full / 2 + random() * (full / 2)

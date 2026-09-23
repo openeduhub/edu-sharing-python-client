@@ -11,6 +11,7 @@ This file notices the next one.
 
 import ast
 import builtins
+import math
 from pathlib import Path
 
 import httpx
@@ -155,6 +156,38 @@ async def test_a_status_means_the_same_in_every_client(name, status, expected):
     client, call = _clients(lambda r: httpx.Response(status, json={"message": "x"}))[name]
     with pytest.raises(expected):
         await call(client)
+
+
+_WITH_TIMEOUT = {
+    "repository": lambda t: Transport(f"{BASE}/edu-sharing", timeout=t),
+    "b-api": lambda t: BildungsAPI("k", base_url=BASE, timeout=t),
+    "templates": lambda t: BapiTemplates("k", base_url=BASE, metadataset="mds", timeout=t),
+    "extraction": lambda t: TextExtraction(BASE, timeout=t),
+    "metadata agent": lambda t: MetadataAgent(BASE, timeout=t),
+}
+
+
+@pytest.mark.parametrize("name", CLIENTS)
+def test_an_infinite_timeout_is_refused_by_every_client(name):
+    """Audit API-23-3 (2026-09-23): ``timeout=inf`` became
+    ``Timeout(timeout=inf)``, a call that never gives up -- ``at_least``
+    promised "type and finiteness" and checked nan."""
+    with pytest.raises(EduSharingError, match="timeout"):
+        _WITH_TIMEOUT[name](math.inf)
+
+
+async def test_a_cache_may_still_be_kept_forever():
+    """The counterpart: for the three cache durations infinity is the
+    statement -- ``CACHE_FOREVER`` is ``float("inf")``."""
+    from edusharing.bapi import CACHE_FOREVER
+    from edusharing.metadata import MetadataCatalog
+    from edusharing.vocab import Vocabulary
+
+    async with Transport(f"{BASE}/edu-sharing") as transport:
+        assert MetadataCatalog(transport, cache_seconds=math.inf).cache_seconds == math.inf
+        assert Vocabulary(transport, cache_seconds=math.inf).cache_seconds == math.inf
+    async with BildungsAPI("k", base_url=BASE, models_cache_seconds=CACHE_FOREVER):
+        pass
 
 
 # --- An address httpx cannot read ------------------------------------------------

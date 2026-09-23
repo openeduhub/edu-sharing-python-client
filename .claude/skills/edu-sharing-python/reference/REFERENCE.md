@@ -1760,7 +1760,7 @@ rather than reporting success.
 |---|---|
 | `error_from_response(status, url, body)` | picks the class for a status code |
 | `details_withheld(error)` | `bool` — the instance hides its error details |
-| `at_least(name, value, limit)` | the bounds check for the **continuous** settings — seconds, a backoff base; raises `EduSharingError` naming the setting |
+| `at_least(name, value, limit, infinite=False)` | the bounds check for the **continuous** settings — seconds, a backoff base; raises `EduSharingError` naming the setting. Finite unless `infinite=True`, which only the three cache durations pass (`CACHE_FOREVER`) |
 | `whole_number(name, value, limit)` | the same for a setting that **counts** — `max_concurrency`, `max_retries`, `retries_before_switching`. A fraction is refused, `2.0` included: `asyncio.Semaphore(1.5)` never reaches the zero at which it blocks, so the limit silently stopped limiting |
 | `check_client(client, timeout=…)` | the four rules for an injected `httpx.AsyncClient`: no `timeout` beside it, no `follow_redirects=True`, no credentials of its own (`auth=` or any default header beyond the four httpx sets itself), and no cookies already in its jar |
 | `redirect_error(status, location, url, service=…, env_var=…)` | the 3xx all four clients report instead of following. The message names the target host only; the whole `Location` is on the exception as `.location` |
@@ -1794,7 +1794,7 @@ Not needed for ordinary use; documented because they are importable.
 | `Transport` | the HTTP layer: retries, backoff, the credential boundary |
 | `Transport.is_repository_url(url)` | `bool` |
 | `RetryPolicy(max_retries=…, backoff_base=…, max_retry_after=…)` | the one retry rule the three clients share |
-| `RetryPolicy.delay(attempt, retry_after=…)` | `float \| None` — seconds to wait; `None` when the wait is too long to sit out |
+| `RetryPolicy.delay(attempt, retry_after=…)` | `float \| None` — seconds to wait, never more than `max_retry_after`; `None` when the server asked for longer |
 | `RETRYABLE_STATUS` | `{429, 500, 502, 503, 504}` — the statuses the two sibling clients try again |
 | `DEFAULT_MAX_RETRY_AFTER` | `60.0` — the longest server-named wait still sat out |
 | `parse_retry_after(value)` | `float \| None` — reads a `Retry-After` header, seconds or HTTP date |
@@ -1805,7 +1805,9 @@ Not needed for ordinary use; documented because they are importable.
 longest server-named wait still sat out (`max_retry_after`, 60 s). The pause
 carries jitter — between half a step and a full one — because eight calls of
 one fan-out otherwise meet the same 503 and come back in the same millisecond.
-A `Retry-After` outranks that curve and is never undercut. What each client
+A `Retry-After` outranks that curve and is never undercut. `max_retry_after`
+is also where the curve stops growing: past it a wait is a hang, and
+`max_retries=12` used to wait up to 34 minutes in all. What each client
 still decides for itself is *which* failure earns another attempt: the
 transport by error type, because an edu-sharing 500 can mean "not signed in",
 the sibling services by `RETRYABLE_STATUS`.

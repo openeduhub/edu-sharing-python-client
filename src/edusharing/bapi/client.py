@@ -164,7 +164,7 @@ class BildungsAPI:
         # checks its own bounds (audit ARC-2).
         self._retry = RetryPolicy(max_retries=max_retries, backoff_base=backoff_base)
         whole_number("max_concurrency", max_concurrency, 1)
-        at_least("models_cache_seconds", models_cache_seconds, 0)
+        at_least("models_cache_seconds", models_cache_seconds, 0, infinite=True)
         whole_number("retries_before_switching", retries_before_switching, 0)
         self._api_key = api_key
         # The same check the three sibling clients run. It was missing here and

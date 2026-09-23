@@ -16,6 +16,7 @@ a message an application shows its users.
 
 from __future__ import annotations
 
+import math
 from urllib.parse import urlsplit
 
 from ._json import loads
@@ -581,7 +582,7 @@ def check_client(client: object | None, *, timeout: float | None) -> None:
         )
 
 
-def at_least(name: str, value: float, limit: float) -> None:
+def at_least(name: str, value: float, limit: float, *, infinite: bool = False) -> None:
     """Reject a parameter that yields no sensible operation.
 
     Early and loud rather than late and puzzling: ``max_retries=-1`` would never
@@ -593,11 +594,16 @@ def at_least(name: str, value: float, limit: float) -> None:
     ``TypeError`` rather than an ``EduSharingError``, so the library's own error
     type did not cover its own input; and ``nan`` passed, because every
     comparison with it is false -- httpx then received a timeout that never
-    elapses.
+    elapses. Infinity passed until 2026-09-23 although this said "finiteness"
+    (audit API-23-3): ``timeout=inf`` never gives up, ``backoff_base=inf``
+    sleeps forever.
 
-    Shared by ``Transport``, ``BildungsAPI`` and ``TextExtraction``: all three
-    run a retry loop, and the b-api client had this check missing (audit F3,
-    2026-08-27).
+    Args:
+        infinite: allow ``inf``, for the one kind of setting where it is the
+            statement -- a cache duration, ``CACHE_FOREVER``.
+
+    Shared by every client and every setting measured in seconds; the b-api
+    client had this check missing (audit F3, 2026-08-27).
     """
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise EduSharingError(
@@ -608,6 +614,11 @@ def at_least(name: str, value: float, limit: float) -> None:
         raise EduSharingError(
             f"{name}=nan is not allowed -- a value of at least {limit} is "
             "expected, and nan compares false against every limit."
+        )
+    if value == math.inf and not infinite:
+        raise EduSharingError(
+            f"{name}=inf is not allowed -- a finite value of at least {limit} is "
+            "expected: an endless wait is a hang, not a setting."
         )
     if value < limit:
         raise EduSharingError(

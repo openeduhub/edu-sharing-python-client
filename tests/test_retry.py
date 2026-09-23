@@ -125,3 +125,43 @@ def test_die_grenzen_werden_beim_bauen_geprueft():
         RetryPolicy(backoff_base=-0.5)
     with pytest.raises(EduSharingError, match="max_retry_after"):
         RetryPolicy(max_retry_after=-1.0)
+
+
+# --- Die Decke (Audit API-23-3) ----------------------------------------------
+#
+# Audit 23.09.2026: der Backoff wuchs ohne Grenze. ``max_retries=12`` wartete
+# vor dem letzten Versuch 596 bis 1 005 s, bis zu 34 Minuten insgesamt -- wo
+# dasselbe Modul sagt, laenger als ``max_retry_after`` sei eine Wartezeit
+# "keine Wiederholung mehr, sondern ein Aufhaenger".
+
+
+def test_der_backoff_waechst_nicht_ueber_max_retry_after(wuerfel):
+    wuerfel(1.0)
+    regel = RetryPolicy(backoff_base=0.5, max_retry_after=60.0)
+    assert regel.delay(12) == 60.0
+    assert max(regel.delay(n) for n in range(1, 40)) == 60.0
+
+
+def test_auch_ein_genanntes_retry_after_samt_jitter_bleibt_darunter(wuerfel):
+    """Nie unterschritten, und nie ueber die Decke: bei ``retry_after`` gleich
+    der Decke bleibt fuer den Jitter nichts."""
+    wuerfel(1.0)
+    regel = RetryPolicy(backoff_base=0.5, max_retry_after=60.0)
+    assert regel.delay(1, retry_after=60.0) == 60.0
+
+
+def test_ein_spaeter_versuch_laeuft_nicht_ueber(wuerfel):
+    """``2.0 ** 1024`` wirft ``OverflowError``, und ``max_retries=2000`` ist
+    ein erlaubter Wert."""
+    wuerfel(1.0)
+    assert RetryPolicy(max_retries=2000).delay(2000) == retry.DEFAULT_MAX_RETRY_AFTER
+
+
+@pytest.mark.parametrize("feld", ["backoff_base", "max_retry_after"])
+def test_unendlich_ist_keine_grenze(feld):
+    """``at_least`` versprach "Typ und Endlichkeit" und pruefte nan.
+    ``backoff_base=inf`` gab ``delay(1) == inf``, und ``asyncio.sleep``
+    wartet das ab; ``max_retry_after=inf`` wartete ein Retry-After von einem
+    Tag aus."""
+    with pytest.raises(EduSharingError, match=feld):
+        RetryPolicy(**{feld: float("inf")})

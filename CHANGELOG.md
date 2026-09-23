@@ -19,18 +19,6 @@ and in [`docs/audits/`](docs/audits/).
 
 ## [Unreleased]
 
-### Changed
-
-- The generated layer was rebuilt with `openapi-python-client` 0.29.1 (from
-  0.29.0), which changed 327 of its files: generated enums are `StrEnum`
-  rather than `Enum`, empty docstrings are gone, and two admin Lucene
-  endpoints have a differently escaped default `query`. Nothing in the
-  hand-written layer imports `_generated`, so none of it is reachable through
-  the library's own surface -- but the files ship, and the CI job that
-  regenerates and diffs them would fail if the tool moved without them.
-  `ruff` went 0.16.4 to 0.16.8 and four pinned GitHub Actions moved with it;
-  the suite is 2 764 passed either way.
-
 ### Security
 
 - **A registry file can no longer stop a service.** The heading pattern of the
@@ -164,6 +152,25 @@ and in [`docs/audits/`](docs/audits/).
   Now `TransportError` is raised everywhere for the network, the extraction
   service types its statuses like the others, and 422 is a `ValidationError`.
   One test asks all five clients the same questions (audit API-23-4).
+- **An infinite timeout is refused, and the backoff has a ceiling.**
+  `at_least` promised "type and finiteness" and checked `nan`: `timeout=inf`
+  gave a call that never gives up, `backoff_base=inf` a sleep that never
+  ends, `max_retry_after=inf` sat out a day-long `Retry-After`. Infinity is
+  refused now unless the setting says it means it -- only the three cache
+  durations do, where `CACHE_FOREVER` is the statement. And the backoff
+  doubled without limit: `max_retries=12` waited up to 17 minutes before the
+  last attempt and 34 in all, where the module itself calls anything past
+  `max_retry_after` a hang. No wait exceeds `max_retry_after` now, and a
+  budget of 2 000 retries no longer overflows (audit API-23-3).
+- The generated layer was rebuilt with `openapi-python-client` 0.29.1 (from
+  0.29.0), which changed 327 of its files: generated enums are `StrEnum`
+  rather than `Enum`, empty docstrings are gone, and two admin Lucene
+  endpoints have a differently escaped default `query`. Nothing in the
+  hand-written layer imports `_generated`, so none of it is reachable through
+  the library's own surface -- but the files ship, and the CI job that
+  regenerates and diffs them would fail if the tool moved without them.
+  `ruff` went 0.16.4 to 0.16.8 and four pinned GitHub Actions moved with it;
+  the suite is 2 764 passed either way.
 
 ## [0.3.5] — 2026-09-21
 

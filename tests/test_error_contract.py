@@ -11,6 +11,7 @@ This file notices the next one.
 
 import ast
 import builtins
+import json
 import math
 from pathlib import Path
 
@@ -221,37 +222,65 @@ async def test_an_address_httpx_cannot_read_is_refused_before_sending(path):
 
 
 # --- JSON nested deeper than the interpreter recurses ----------------------------
+#
+# How deep ``json`` goes depends on the interpreter and its stack. Measured
+# 2026-09-23: 3.13 on Windows gives up at 10 000 levels, 3.14 on Windows at
+# 100 000 -- and 3.14 on Linux, in CI, parses 100 000 without complaint, so a
+# test built on that depth was red there alone. The clients are therefore
+# tested against the parser's ``RecursionError`` itself, raised on purpose;
+# the real nesting is tested where this interpreter gives up on it.
 
 #: 200 kB -- far below every size limit this library sets.
 TOO_DEEP = "[" * 100_000 + "]" * 100_000
 
 
-def _deep(status):
-    return lambda _request: httpx.Response(status, content=TOO_DEEP.encode(),
+def _gives_up(text: str) -> bool:
+    try:
+        json.loads(text)
+    except RecursionError:
+        return True
+    return False
+
+
+@pytest.fixture
+def parser_gives_up(monkeypatch):
+    """``json`` giving up on the depth, whatever this interpreter's limit.
+
+    Both ways in go through ``json.loads``: ``_json.loads`` directly, and
+    httpx's ``Response.json`` behind ``_json.json_of``."""
+    def too_deep(*_args, **_kwargs):
+        raise RecursionError("maximum recursion depth exceeded while decoding a JSON array")
+
+    monkeypatch.setattr(json, "loads", too_deep)
+
+
+def _answering(status):
+    return lambda _request: httpx.Response(status, content=b"[[[]]]",
                                            headers={"content-type": "application/json"})
 
 
 @pytest.mark.parametrize("name", CLIENTS)
-async def test_a_body_nested_too_deep_is_a_server_error_in_every_client(name):
+async def test_a_body_nested_too_deep_is_a_server_error_in_every_client(name, parser_gives_up):
     """Audit COR-23-5 (2026-09-23): every parse caught ``ValueError`` and none
     ``RecursionError``, which is what ``json`` raises for nesting deeper than
-    the interpreter recurses. Measured: 200 kB was enough, at every site."""
-    client, call = _clients(_deep(200))[name]
+    the interpreter recurses. Measured on 3.13: 200 kB was enough, at every
+    site."""
+    client, call = _clients(_answering(200))[name]
     with pytest.raises(ServerError):
         await call(client)
 
 
 @pytest.mark.parametrize("name", CLIENTS)
-async def test_a_failure_body_nested_too_deep_keeps_its_status(name):
+async def test_a_failure_body_nested_too_deep_keeps_its_status(name, parser_gives_up):
     """The error mapping reads the body too, and must not replace the failure
     it is reporting with one of its own."""
-    client, call = _clients(_deep(502))[name]
+    client, call = _clients(_answering(502))[name]
     with pytest.raises(ServerError) as failure:
         await call(client)
     assert failure.value.status == 502
 
 
-def test_a_stored_page_document_nested_too_deep_reads_as_unreadable():
+def test_a_stored_page_document_nested_too_deep_reads_as_unreadable(parser_gives_up):
     """``pages`` promises that reading raises nothing on a bad document -- "the
     document is written by the page builder and validated by nobody", and the
     repository stores whatever it is given. It raised ``RecursionError``."""
@@ -259,8 +288,19 @@ def test_a_stored_page_document_nested_too_deep_reads_as_unreadable():
     from edusharing.pages import VARIANT_CONFIG, variant_from_node
 
     variant = variant_from_node(Node(
-        {"ref": {"id": "v-1"}, "properties": {VARIANT_CONFIG: [TOO_DEEP]}}, None))
+        {"ref": {"id": "v-1"}, "properties": {VARIANT_CONFIG: ["[[[]]]"]}}, None))
     assert variant.readable is False
+
+
+@pytest.mark.skipif(not _gives_up(TOO_DEEP),
+                    reason="this interpreter parses 100 000 levels (3.14 on Linux does)")
+def test_real_nesting_too_deep_becomes_a_decode_error():
+    """The depth itself, where this interpreter gives up on it: the error that
+    comes out is ``json``'s own for unreadable text."""
+    from edusharing._json import loads
+
+    with pytest.raises(json.JSONDecodeError):
+        loads(TOO_DEEP)
 
 
 def _foreign_parses(text: str, label: str) -> list[str]:

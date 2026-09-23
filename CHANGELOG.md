@@ -86,7 +86,10 @@ and in [`docs/audits/`](docs/audits/).
   -- documented to raise nothing -- with `RecursionError`, and the repository
   stores such a document verbatim. All fourteen parse sites now go through one
   reader that raises what `json` raises for unreadable text, and a guard fails
-  on a parse anywhere else (audit COR-23-5).
+  on a parse anywhere else (audit COR-23-5). How deep is too deep depends on
+  the interpreter: measured on 3.13 under Windows, while 3.14 under Linux
+  parses those 100 000 levels -- so the tests raise the parser's
+  `RecursionError` on purpose rather than rely on one depth.
 - **A field in the wrong form is read as not given.** Four readers checked the
   object and trusted its fields. In the b-api model list a numeric
   `shutdown_date` raised `TypeError` from `chat()` -- after the model had

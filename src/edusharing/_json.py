@@ -3,10 +3,13 @@
 Every body a service sends and every document the repository stores is parsed
 here. ``json`` raises ``ValueError`` for text that is not JSON, and every caller
 handles that. For JSON nested deeper than the interpreter recurses it raises
-``RecursionError``, and no caller did: measured 2026-09-23, a 200 kB document
-nested 100 000 deep ended a page read, the error mapping and all five clients
-with ``RecursionError`` -- including ``pages._lanes``, documented to raise
-nothing, over a document the repository stores verbatim (audit COR-23-5).
+``RecursionError``, and no caller did: measured 2026-09-23 on Python 3.13, a
+200 kB document nested 100 000 deep ended a page read, the error mapping and
+all five clients with ``RecursionError`` -- including ``pages._lanes``,
+documented to raise nothing, over a document the repository stores verbatim
+(audit COR-23-5). How deep is too deep depends on the interpreter and its
+stack: 3.13 on Windows gives up at 10 000 levels, 3.14 on Linux parses
+100 000. The rule here is about the error, not about a depth.
 
 Here the depth becomes the ``json.JSONDecodeError`` -- a ``ValueError`` --
 that every caller already turns into its own answer. ``test_error_contract``

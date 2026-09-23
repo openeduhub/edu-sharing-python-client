@@ -113,7 +113,7 @@ die festlegen, welche Eigenschaften ein Objekt haben darf. Eine Eigenschaft,
 die der Satz nicht kennt, wird **nicht** zurückgewiesen: das Repositorium
 antwortet `200 OK` und speichert nichts.
 
-Darum liest jeder Schreibvorgang dieser Bibliothek zurück und wirft bei
+Darum liest die Bibliothek Eigenschafts-Schreibvorgänge zurück und wirft bei
 Abweichung `SilentDropError`. Das nicht abschalten — und eine `200` nicht als
 Beleg nehmen.
 
@@ -153,9 +153,11 @@ es diese Bibliothek gibt.
 
 ### 2.1 HTTP 200 heißt nicht, dass etwas gespeichert wurde
 
-edu-sharing nimmt Schreibvorgänge an, die es dann verwirft. Jeder
-Schreibvorgang dieser Bibliothek liest zurück und wirft `SilentDropError`,
-statt Erfolg zu melden.
+edu-sharing nimmt Schreibvorgänge an, die es dann verwirft. Wo diese
+Bibliothek einen Schreibvorgang zurückliest — Eigenschaften, Rechte,
+Beziehungen, Vorschläge —, wirft sie `SilentDropError`, statt Erfolg zu melden.
+Nicht jeder wird zurückgelesen; die Referenz nennt die, die es nicht werden
+(`repo.add_to_collection` kann es nicht).
 
 ```python
 try:

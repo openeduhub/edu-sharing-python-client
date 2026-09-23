@@ -82,6 +82,11 @@ toolpermission.
 Identifiers, comments, docstrings and all documentation are **English** — the
 library is read by people who do not read German.
 
+`tests/test_english_layer.py` holds `src/`, `scripts/` and `.github/` to that:
+it fails on German words in comments, text and names. A measured German value
+is quoted (`"..."` or double backticks) and passes; German that is data, like
+the stopword list, stands on the guard's short list with its reason.
+
 Test names and test docstrings follow the file you are editing: the older test
 modules are German, the newer ones English. Do not convert a file you are only
 passing through.

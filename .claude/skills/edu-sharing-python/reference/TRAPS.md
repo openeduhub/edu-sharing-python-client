@@ -110,7 +110,7 @@ Every instance carries one or more metadata sets (`repo.metadatasets()`) that
 define which properties an object may hold. A property the set does not know is
 **not** rejected: the repository answers `200 OK` and stores nothing.
 
-This is why every write in this library reads back and raises `SilentDropError`
+This is why the library reads property writes back and raises `SilentDropError`
 on a mismatch. Do not switch that off, and do not treat a `200` as proof.
 
 ### 1.6 Some lists are shared property
@@ -149,8 +149,10 @@ library exists.
 
 ### 2.1 HTTP 200 does not mean it was stored
 
-edu-sharing accepts writes it then discards. Every write in this library reads
-back and raises `SilentDropError` instead of reporting success.
+edu-sharing accepts writes it then discards. Where this library reads a write
+back -- properties, permissions, relations, suggestions -- it raises
+`SilentDropError` instead of reporting success. Not every write is read back;
+the reference names those that are not (`repo.add_to_collection` cannot be).
 
 ```python
 try:

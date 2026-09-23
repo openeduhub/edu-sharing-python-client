@@ -1188,7 +1188,8 @@ repo.flows.add_material("Photosynthese", publish=True)["public"]   # True
 ### When a write half-succeeds
 
 edu-sharing answers HTTP 200 to writes it does not fully store. The library
-reads back after every write -- creating included -- and raises `SilentDropError`
+reads property writes back -- `update`, `set_property` and creating a node
+alike -- and raises `SilentDropError`
 naming the properties that did not arrive.
 
 Three measured causes:

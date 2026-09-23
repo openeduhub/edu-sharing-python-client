@@ -153,7 +153,7 @@ die Schreib-Kurznamen — `title`, `description`, `keywords`, `name`, `url`,
 `author` (`WRITE_FIELD_ALIASES`); alles andere mit vollem Namen:
 `node.update(properties={"ccm:taxonid": [repo.resolve("ccm:taxonid", "Physik")]})`
 oder `node.set_property("ccm:taxonid", uri)`. Ein unbekannter Kurzname wirft
-`ValidationError`, bevor etwas gesendet wird. Jeder Schreibvorgang liest zurück:
+`ValidationError`, bevor etwas gesendet wird. Beide Schreibwege lesen zurück:
 ein Wert, den das Repositorium verwarf (HTTP 200, nicht gespeichert), wirft
 `SilentDropError`, dessen `dropped` die Eigenschaften nennt.
 `update(keywords=[…])` **ersetzt** eine gemeinsame Liste — `add_keywords` bzw.
@@ -410,7 +410,7 @@ Bibliothek wirft, und keine Meldung trägt einen Java-Stacktrace.
 | Klasse | Wann |
 |---|---|
 | `SilentDropError` | ein Schreibvorgang antwortete 200 und speicherte nicht — `.dropped` nennt die Eigenschaften |
-| `ValidationError` | die Anfrage ist falsch — vor dem Senden erkannt (unbekannter Kurzname) oder mit 400 abgelehnt (ein Kriterium, das dieser Metadatensatz nicht kennt, eine unbekannte Vorlagen-ID) |
+| `ValidationError` | die Anfrage ist falsch — vor dem Senden erkannt (unbekannter Kurzname, leere Eingabe) oder mit 400 oder 422 abgelehnt (ein Kriterium, das dieser Metadatensatz nicht kennt, eine unbekannte Vorlagen-ID). Zugleich ein `ValueError` |
 | `NotFoundError` · `PermissionDeniedError` · `AuthenticationError` | 404 · 403 · 401 |
 | `ConflictError` · `RateLimitedError` · `ServerError` | 409 · 429 (`.retry_after`) · 5xx |
 | `TransportError` · `ContentTooLargeError` · `UnsafeUrlError` | Netz · über `max_bytes` · verweigerte Adresse |

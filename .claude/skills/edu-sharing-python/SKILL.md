@@ -142,7 +142,7 @@ only the write short names — `title`, `description`, `keywords`, `name`, `url`
 `author` (`WRITE_FIELD_ALIASES`); anything else by full name:
 `node.update(properties={"ccm:taxonid": [repo.resolve("ccm:taxonid", "Physik")]})`
 or `node.set_property("ccm:taxonid", uri)`. An unknown short name raises
-`ValidationError` before anything is sent. Every write reads back: a value the
+`ValidationError` before anything is sent. Both writes read back: a value the
 repository dropped (HTTP 200, not stored) raises `SilentDropError`, whose
 `dropped` lists the properties. `update(keywords=[…])` **replaces** a shared
 list — use `add_keywords`/`remove_keywords`. A bare record without flow:
@@ -394,7 +394,7 @@ everything the library raises, and no message carries a Java stack trace.
 | Class | When |
 |---|---|
 | `SilentDropError` | a write answered 200 and did not store — `.dropped` names the properties |
-| `ValidationError` | the request is wrong — caught before sending (unknown short name) or refused with 400 (a criterion this metadata set does not know, an unknown template id) |
+| `ValidationError` | the request is wrong — caught before sending (unknown short name, empty input) or refused with 400 or 422 (a criterion this metadata set does not know, an unknown template id). Also a `ValueError` |
 | `NotFoundError` · `PermissionDeniedError` · `AuthenticationError` | 404 · 403 · 401 |
 | `ConflictError` · `RateLimitedError` · `ServerError` | 409 · 429 (`.retry_after`) · 5xx |
 | `TransportError` · `ContentTooLargeError` · `UnsafeUrlError` | network · above `max_bytes` · refused address |

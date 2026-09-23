@@ -1208,8 +1208,9 @@ repo.flows.add_material("Photosynthese", publish=True)["public"]   # True
 ### Wenn ein Schreibvorgang halb glückt
 
 edu-sharing antwortet mit HTTP 200 auch auf Schreibvorgänge, die es nicht
-vollständig speichert. Die Bibliothek liest nach jedem Schreiben zurück — auch
-nach dem Anlegen — und wirft einen `SilentDropError`, der die nicht
+vollständig speichert. Die Bibliothek liest Eigenschafts-Schreibvorgänge
+zurück — `update`, `set_property` und das Anlegen eines Knotens gleichermaßen —
+und wirft einen `SilentDropError`, der die nicht
 angekommenen Eigenschaften benennt.
 
 Drei gemessene Ursachen:

@@ -37,9 +37,9 @@ for. The fixed list (``sortedNodeIds``) needs no guessing and is resolved.
 from __future__ import annotations
 
 import asyncio
-import json
 from typing import TYPE_CHECKING, Any
 
+from .._json import loads
 from ..dto import bare_id
 from ..errors import EduSharingError, ValidationError
 from ..pages import PAGE_REF, CuratedPage, PageVariant
@@ -314,7 +314,7 @@ def _widget(raw: str | None) -> dict[str, Any]:
     if raw is None:
         return {}
     try:
-        doc = json.loads(raw)
+        doc = loads(raw)
     except (ValueError, TypeError):
         return {"unreadable": f"{_WIDGET_CONFIG} is not valid JSON"}
     if not isinstance(doc, dict):

@@ -509,6 +509,7 @@ does not go into the README.
 | `_http.py` | Bounded decoded-response reading shared by repository downloads and binary b-api calls |
 | `_decoding.py` | Incremental gzip/deflate decoding with bounded output and intermediate layers |
 | `_checks.py` | Caller-input rules more than one module needs — the MIME type, the locale — in one place, so a second module finds them (audit ARC-23-1) |
+| `_json.py` | The one reader for JSON another machine wrote: nesting too deep to read becomes the `ValueError` every caller handles; a guard fails on a parse anywhere else (audit COR-23-5) |
 | `_sync.py` | Event loop in a background thread for the synchronous surface |
 | `repository.py` | `AsyncRepository` / `Repository`, `about()`, `whoami()`, `raw` |
 | `extraction.py` | The text-extraction service beside the repository, and the guards before it |

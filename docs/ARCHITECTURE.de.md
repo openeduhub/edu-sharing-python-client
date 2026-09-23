@@ -554,6 +554,7 @@ läuft, kommt nicht ins README.
 | `_http.py` | Begrenztes Einlesen dekodierter Antworten, gemeinsam für Repository-Downloads und binäre b-api-Aufrufe |
 | `_decoding.py` | Schrittweises Dekodieren von gzip/deflate mit begrenzter Ausgabe und begrenzten Zwischenschichten |
 | `_checks.py` | Regeln für Eingaben des Aufrufers, die mehr als ein Modul braucht — MIME-Typ, Sprache — an einer Stelle, damit ein zweites Modul sie findet (Audit ARC-23-1) |
+| `_json.py` | Der eine Leser für JSON, das eine andere Maschine schrieb: zu tiefe Verschachtelung wird zu dem `ValueError`, den jeder Aufrufer behandelt; ein Wächter schlägt bei jedem Parse anderswo an (Audit COR-23-5) |
 | `_sync.py` | Ereignisschleife in einem Hintergrundfaden für die synchrone Fläche |
 | `repository.py` | `AsyncRepository` / `Repository`, `about()`, `whoami()`, `raw` |
 | `extraction.py` | Der Textextraktionsdienst neben dem Repositorium und die Prüfungen davor |

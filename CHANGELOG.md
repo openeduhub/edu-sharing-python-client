@@ -75,6 +75,14 @@ and in [`docs/audits/`](docs/audits/).
   `ValueError`, so `except SilentDropError` -- the pattern the reference
   prints -- went past it, and `as_result` let it through. `dropped` names the
   property (audit COR-23-2).
+- **JSON nested deeper than the interpreter recurses stays inside the
+  contract.** Every parse caught `ValueError`, and `json` raises
+  `RecursionError` for such nesting: a 200 kB body or stored document nested
+  100 000 deep ended all five clients, the error mapping and the page reader
+  -- documented to raise nothing -- with `RecursionError`, and the repository
+  stores such a document verbatim. All fourteen parse sites now go through one
+  reader that raises what `json` raises for unreadable text, and a guard fails
+  on a parse anywhere else (audit COR-23-5).
 - **A proxy's page is no longer read as "this page has no text".** The
   extraction service read a success without its answer object as `{}` and
   answered `reason="no_text"` -- a statement about the page, for every

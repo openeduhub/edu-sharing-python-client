@@ -16,8 +16,9 @@ a message an application shows its users.
 
 from __future__ import annotations
 
-import json
 from urllib.parse import urlsplit
+
+from ._json import loads
 
 __all__ = [
     "at_least",
@@ -244,7 +245,7 @@ def _parse_body(body: str) -> tuple[str | None, str, str | None]:
     if not body:
         return None, "", None
     try:
-        data = json.loads(body)
+        data = loads(body)
     except (ValueError, TypeError):
         return None, "", None
     if not isinstance(data, dict):

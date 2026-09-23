@@ -113,7 +113,7 @@ def _clients(handler):
 
     return {
         "repository": (Transport(f"{BASE}/edu-sharing", max_retries=0, client=http()),
-                       lambda c: c.request("GET", "/_about")),
+                       lambda c: c.json("GET", "/_about")),
         "b-api": (BildungsAPI("k", base_url=BASE, max_retries=0, client=http()),
                   lambda c: c.models()),
         "templates": (BapiTemplates("k", base_url=BASE, metadataset="mds", max_retries=0,
@@ -155,3 +155,82 @@ async def test_a_status_means_the_same_in_every_client(name, status, expected):
     client, call = _clients(lambda r: httpx.Response(status, json={"message": "x"}))[name]
     with pytest.raises(expected):
         await call(client)
+
+
+# --- JSON nested deeper than the interpreter recurses ----------------------------
+
+#: 200 kB -- far below every size limit this library sets.
+TOO_DEEP = "[" * 100_000 + "]" * 100_000
+
+
+def _deep(status):
+    return lambda _request: httpx.Response(status, content=TOO_DEEP.encode(),
+                                           headers={"content-type": "application/json"})
+
+
+@pytest.mark.parametrize("name", CLIENTS)
+async def test_a_body_nested_too_deep_is_a_server_error_in_every_client(name):
+    """Audit COR-23-5 (2026-09-23): every parse caught ``ValueError`` and none
+    ``RecursionError``, which is what ``json`` raises for nesting deeper than
+    the interpreter recurses. Measured: 200 kB was enough, at every site."""
+    client, call = _clients(_deep(200))[name]
+    with pytest.raises(ServerError):
+        await call(client)
+
+
+@pytest.mark.parametrize("name", CLIENTS)
+async def test_a_failure_body_nested_too_deep_keeps_its_status(name):
+    """The error mapping reads the body too, and must not replace the failure
+    it is reporting with one of its own."""
+    client, call = _clients(_deep(502))[name]
+    with pytest.raises(ServerError) as failure:
+        await call(client)
+    assert failure.value.status == 502
+
+
+def test_a_stored_page_document_nested_too_deep_reads_as_unreadable():
+    """``pages`` promises that reading raises nothing on a bad document -- "the
+    document is written by the page builder and validated by nobody", and the
+    repository stores whatever it is given. It raised ``RecursionError``."""
+    from edusharing.nodes import Node
+    from edusharing.pages import VARIANT_CONFIG, variant_from_node
+
+    variant = variant_from_node(Node(
+        {"ref": {"id": "v-1"}, "properties": {VARIANT_CONFIG: [TOO_DEEP]}}, None))
+    assert variant.readable is False
+
+
+def _foreign_parses(text: str, label: str) -> list[str]:
+    found = []
+    for node in ast.walk(ast.parse(text, filename=label)):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+            continue
+        func = node.func
+        if isinstance(func.value, ast.Name) and func.value.id == "json" \
+                and func.attr in ("loads", "load"):
+            found.append(f"{label}:{node.lineno} json.{func.attr}")
+        elif func.attr == "json" and not node.args and not node.keywords:
+            found.append(f"{label}:{node.lineno} .json()")
+    return found
+
+
+def test_every_json_parse_goes_through_one_reader():
+    """The class guard: a parse outside ``_json`` is a parse that forgot the
+    depth rule. ``transport.json("GET", path)`` takes arguments and is not a
+    parse; ``response.json()`` is."""
+    offenders = [
+        hit
+        for path in sorted(SOURCE.rglob("*.py"))
+        if "_generated" not in path.parts and path.name != "_json.py"
+        for hit in _foreign_parses(path.read_text(encoding="utf-8"),
+                                   path.relative_to(SOURCE).as_posix())
+    ]
+    assert offenders == [], "parse through edusharing._json:\n" + "\n".join(offenders)
+
+
+def test_the_parse_guard_sees_a_parse():
+    sample = ("import json\n"
+              "a = json.loads(text)\n"
+              "b = response.json()\n"
+              "c = transport.json('GET', '/x')\n")
+    assert _foreign_parses(sample, "s.py") == ["s.py:2 json.loads", "s.py:3 .json()"]

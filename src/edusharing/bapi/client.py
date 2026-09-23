@@ -39,6 +39,7 @@ from typing import Any, Self
 import httpx
 
 from .._http import _read_bounded_response
+from .._json import json_of
 from ..errors import (
     EduSharingError,
     RateLimitedError,
@@ -568,7 +569,7 @@ class BildungsAPI:
         # (F13). The edu-sharing side has asked ``isinstance(data, dict)`` all
         # along in ``_parse_body``; this side did not.
         try:
-            data = response.json()
+            data = json_of(response)
         except ValueError:
             data = None
         if isinstance(data, dict):
@@ -598,6 +599,6 @@ def _response_body(response: httpx.Response, url: str, as_bytes: bool) -> Any:
     if as_bytes:
         return response.content
     try:
-        return response.json()
+        return json_of(response)
     except ValueError as exc:
         raise non_json_error(response.status_code, url, response.text, service="The b-api") from exc

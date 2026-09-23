@@ -32,6 +32,7 @@ from typing import Any, Self
 import httpx
 
 from ._http import _read_bounded_response
+from ._json import json_of
 from .auth import ANONYMOUS, Credential, credential_from
 from .errors import (
     EduSharingError,
@@ -419,7 +420,7 @@ class Transport:
         """
         response = await self.request(method, path, **kwargs)
         try:
-            return response.json()
+            return json_of(response)
         except ValueError as exc:
             raise non_json_error(
                 response.status_code, str(response.url), response.text,

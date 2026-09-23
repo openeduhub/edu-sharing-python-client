@@ -56,6 +56,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from ._json import json_of
 from .errors import (
     EduSharingError,
     RateLimitedError,
@@ -484,7 +485,7 @@ def _result(url: str, response: httpx.Response,
 
 def _body(response: httpx.Response) -> dict[str, Any]:
     try:
-        data = response.json()
+        data = json_of(response)
     except ValueError:
         return {}
     return data if isinstance(data, dict) else {}
@@ -500,7 +501,7 @@ def _answer(response: httpx.Response) -> dict[str, Any]:
     """
     url = str(response.url)
     try:
-        data = response.json()
+        data = json_of(response)
     except ValueError as exc:
         raise non_json_error(response.status_code, url, response.text,
                              service="The extraction service") from exc

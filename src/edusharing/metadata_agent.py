@@ -41,6 +41,7 @@ from typing import Any, Self
 
 import httpx
 
+from ._json import json_of
 from .errors import (
     EduSharingError,
     TransportError,
@@ -314,7 +315,7 @@ class MetadataAgent:
         if response.status_code >= 400:
             raise error_from_response(response.status_code, url, response.text)
         try:
-            return response.json()
+            return json_of(response)
         except ValueError as exc:
             raise non_json_error(
                 response.status_code, url, response.text,

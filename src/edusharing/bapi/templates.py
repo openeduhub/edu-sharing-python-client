@@ -36,6 +36,7 @@ from typing import Any, Self
 
 import httpx
 
+from .._json import json_of
 from ..errors import (
     EduSharingError,
     RateLimitedError,
@@ -461,7 +462,7 @@ class BapiTemplates:
                                      service="the b-api", env_var=ENV_BASE_URL)
             if status < 400:
                 try:
-                    return response.json()
+                    return json_of(response)
                 except ValueError as exc:
                     raise non_json_error(status, url, response.text,
                                          service="The b-api") from exc
@@ -485,7 +486,7 @@ class BapiTemplates:
         """
         status = response.status_code
         try:
-            data = response.json()
+            data = json_of(response)
         except ValueError:
             data = None
         if isinstance(data, dict):

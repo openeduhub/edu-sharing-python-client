@@ -56,6 +56,7 @@ import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from ._json import loads
 from .dto import bare_id, page_cut
 from .errors import ConflictError, SilentDropError, ValidationError
 from .urls import path_segment
@@ -166,7 +167,7 @@ def _lanes(raw: str) -> tuple[tuple[Swimlane, ...], dict[str, Any]]:
         ``readable=False``.
     """
     try:
-        doc = json.loads(raw)
+        doc = loads(raw)
     except (ValueError, TypeError):
         return (), None  # type: ignore[return-value]
     if not isinstance(doc, dict):
@@ -451,7 +452,7 @@ def _parse_config(raw: str | None) -> tuple[list[str], str]:
     if not raw:
         return [], ""
     try:
-        doc = json.loads(raw)
+        doc = loads(raw)
     except (ValueError, TypeError):
         return [], ""
     if not isinstance(doc, dict):
@@ -486,7 +487,7 @@ def _with_default(raw: str | None, variant_id: str) -> str:
             "-- the page builder owns its shape."
         )
     try:
-        doc = json.loads(raw)
+        doc = loads(raw)
     except (ValueError, TypeError) as exc:
         raise ConflictError(
             f"The stored {PAGE_CONFIG} is not valid JSON and is not overwritten."

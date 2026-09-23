@@ -36,6 +36,7 @@ from itertools import zip_longest
 from typing import Any
 
 from ._checks import check_locale
+from ._json import json_of
 from .dto import node_id_of, stored_title_of
 from .errors import ConflictError, EduSharingError, SilentDropError, ValidationError
 from .nodes import Node, Nodes
@@ -416,7 +417,7 @@ class Collections:
         except ConflictError:
             return {"created": False, "reference_id": None}
         try:
-            body = response.json()
+            body = json_of(response)
         except ValueError:
             body = {}
         node = body.get("node") if isinstance(body, dict) else None

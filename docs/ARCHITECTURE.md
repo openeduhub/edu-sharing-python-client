@@ -508,6 +508,7 @@ does not go into the README.
 | `transport.py` | httpx, timeout, retry, concurrency, credential boundary |
 | `_http.py` | Bounded decoded-response reading shared by repository downloads and binary b-api calls |
 | `_decoding.py` | Incremental gzip/deflate decoding with bounded output and intermediate layers |
+| `_checks.py` | Caller-input rules more than one module needs — the MIME type, the locale — in one place, so a second module finds them (audit ARC-23-1) |
 | `_sync.py` | Event loop in a background thread for the synchronous surface |
 | `repository.py` | `AsyncRepository` / `Repository`, `about()`, `whoami()`, `raw` |
 | `extraction.py` | The text-extraction service beside the repository, and the guards before it |

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import copy
-import re
 import time
 from typing import Any
 
+from ._checks import check_locale
 from .errors import ValidationError, at_least
 from .transport import Transport
 from .urls import path_segment
@@ -23,15 +23,6 @@ __all__ = ["MetadataCatalog"]
 #: visitor (audit PRF-20-2). Four is the default language plus three, and that
 #: is already some 70 MiB.
 MAX_CACHED_LOCALES = 4
-
-#: The shape of a language tag, not the list of them. Which languages an
-#: instance serves is its own decision; ``"de DE"`` is a typo and a value with
-#: a line break is an attempt, and both became a cache key of their own plus a
-#: header the layer below had to reject (audit API-20-1). Not narrower than
-#: that: measured 2026-09-20, edu-sharing 11.0 answers ``"de"`` with *400,
-#: HTTP Header parameter locale is of invalid format: Please use xx_XX* -- its
-#: dialect, said by the instance that owns it, not guessed at from here.
-_LOCALE = re.compile(r"[A-Za-z]{2,3}(?:[_-][A-Za-z0-9]{2,8})?")
 
 
 class MetadataCatalog:
@@ -71,7 +62,7 @@ class MetadataCatalog:
             ValidationError: for a locale that is not a language tag, and for a
                 response that is not an MDS.
         """
-        _check_locale(locale)
+        check_locale(locale)
         lock = self._locks.setdefault(locale, asyncio.Lock())
         async with lock:
             entry = self._cache.get(locale)
@@ -132,23 +123,6 @@ class MetadataCatalog:
         for key in [k for k, lock in self._locks.items()
                     if k not in self._cache and not lock.locked()]:
             del self._locks[key]
-
-
-def _check_locale(locale: str | None) -> None:
-    """Refuse a value that cannot be a language tag.
-
-    Raises:
-        ValidationError: naming the shape that is expected.
-    """
-    if locale is None:
-        return
-    if not isinstance(locale, str) or not _LOCALE.fullmatch(locale):
-        raise ValidationError(
-            f"locale={locale!r} is not a language tag. Something like 'de_DE' "
-            "or 'en_EN' is expected -- measured, edu-sharing answers anything "
-            "else with 'Please use xx_XX'. Only the shape is checked here; "
-            "which languages your instance serves is its own decision."
-        )
 
 
 def _copy(definition: dict[str, Any]) -> dict[str, Any]:

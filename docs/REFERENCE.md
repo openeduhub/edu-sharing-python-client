@@ -1556,6 +1556,9 @@ got.truncated                              # False
 Neither method is the better one: measured, `simple` returned an article where
 `browser` returned a cookie banner. If one yields nothing, try the other.
 Private and unroutable addresses are refused before the request goes out.
+`reason` speaks about the page. When the service itself does not answer — a
+success without its answer object, such as a sign-in proxy's HTML page — that
+is a `ServerError`, not `no_text`.
 
 `from_repository(repo.url)` works with both repository facades. The hostname must
 follow `repository.<domain>`; other layouts, invalid URLs, credentials, query

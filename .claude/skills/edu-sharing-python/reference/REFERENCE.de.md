@@ -1603,7 +1603,10 @@ got.truncated                              # False
 Keine der beiden Methoden ist die bessere: gemessen lieferte `simple` einen
 Artikel, wo `browser` ein Cookie-Banner lieferte. Wenn eine nichts bringt, ist
 die andere der sinnvolle zweite Versuch. Private und nicht routbare Adressen
-werden abgelehnt, bevor die Anfrage hinausgeht.
+werden abgelehnt, bevor die Anfrage hinausgeht. `reason` spricht über die
+Seite. Antwortet der Dienst selbst nicht — ein Erfolg ohne sein Antwortobjekt,
+etwa die HTML-Seite eines Anmelde-Proxys —, ist das ein `ServerError`, nicht
+`no_text`.
 
 `from_repository(repo.url)` funktioniert mit beiden Repository-Fassaden. Der
 Hostname muss `repository.<domain>` entsprechen; andere Varianten, ungültige

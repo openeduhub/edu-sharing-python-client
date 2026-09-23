@@ -75,6 +75,14 @@ and in [`docs/audits/`](docs/audits/).
   `ValueError`, so `except SilentDropError` -- the pattern the reference
   prints -- went past it, and `as_result` let it through. `dropped` names the
   property (audit COR-23-2).
+- **A proxy's page is no longer read as "this page has no text".** The
+  extraction service read a success without its answer object as `{}` and
+  answered `reason="no_text"` -- a statement about the page, for every
+  address, when the service sat behind a sign-in proxy answering with its own
+  HTML. That is a `ServerError` now, as it is on the repository and b-api
+  sides, and `ping()` no longer lets `json.decoder.JSONDecodeError` out. A
+  test from the client's first day had pinned the old reading; its scenario
+  now expects the error (audit COR-23-3).
 - **`MetadataAgent.content_types` hands out copies.** It returned the cached
   list itself, and nothing expires that cache: a caller's `clear()` made every
   later call answer "no content types", and `content_type_for` `None` for

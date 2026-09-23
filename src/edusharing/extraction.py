@@ -59,11 +59,13 @@ import httpx
 from .errors import (
     EduSharingError,
     RateLimitedError,
+    ServerError,
     TransportError,
     ValidationError,
     at_least,
     check_client,
     error_class_for,
+    non_json_error,
     redirect_error,
 )
 from .retry import RETRYABLE_STATUS, RetryPolicy, parse_retry_after
@@ -233,7 +235,7 @@ class TextExtraction:
             Its own answer, measured ``{"status", "version", "timestamp"}``.
         """
         response = await self._request("GET", "/_ping")
-        return dict(response.json())
+        return _answer(response)
 
     async def text_of(
         self,
@@ -455,9 +457,10 @@ def _miss(url: str, reason: str) -> ExtractedText:
 
 def _result(url: str, response: httpx.Response,
             max_chars: int | None) -> ExtractedText:
-    body = _body(response)
     if response.status_code == 424:
-        detail = body.get("detail")
+        # The status is the service's statement about the page; the body only
+        # adds detail, so an unreadable one takes nothing away.
+        detail = _body(response).get("detail")
         detail = detail if isinstance(detail, dict) else {}
         return ExtractedText(
             url=url, text="", lang="", status=_as_int(detail.get("status")),
@@ -465,6 +468,7 @@ def _result(url: str, response: httpx.Response,
             detail=str(detail.get("error_message") or response.text[:200]),
         )
 
+    body = _answer(response)
     text = str(body.get("text") or "")
     if not text.strip():
         return _miss(url, "no_text")
@@ -484,6 +488,28 @@ def _body(response: httpx.Response) -> dict[str, Any]:
     except ValueError:
         return {}
     return data if isinstance(data, dict) else {}
+
+
+def _answer(response: httpx.Response) -> dict[str, Any]:
+    """The service's answer object -- or the error that says there was none.
+
+    A success without one is a statement about the service, not about the
+    page. Read as ``{}``, it came out as ``reason="no_text"`` for every address
+    behind a proxy that answers with its own HTML page (audit COR-23-3) -- the
+    confusion API-1 removed for a redirect.
+    """
+    url = str(response.url)
+    try:
+        data = response.json()
+    except ValueError as exc:
+        raise non_json_error(response.status_code, url, response.text,
+                             service="The extraction service") from exc
+    if not isinstance(data, dict):
+        raise ServerError(
+            f"The extraction service answered HTTP {response.status_code} with a "
+            f"JSON {type(data).__name__}, not the object it answers with.",
+            status=response.status_code, url=url)
+    return data
 
 
 def _cap(text: str, max_chars: int | None) -> tuple[str, bool]:

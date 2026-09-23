@@ -28,7 +28,7 @@ import json
 import httpx
 import pytest
 
-from edusharing.errors import EduSharingError, RateLimitedError
+from edusharing.errors import EduSharingError, RateLimitedError, ServerError
 from edusharing.extraction import ExtractedText, TextExtraction
 
 BASE = "https://text-extraction.test"
@@ -374,20 +374,6 @@ async def test_verbindungsfehler_wird_gemeldet():
             await client.text_of("https://example.org/")
 
 
-async def test_antwort_ohne_json_wird_zu_kein_text():
-    """Ein Dienst, der 200 sagt und HTML schickt, hat keinen Text geliefert --
-    das ist eine Aussage ueber die Antwort, keine Ausnahme wert."""
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, text="<html>keine Antwort im JSON-Format")
-
-    client = TextExtraction(
-        BASE, backoff_base=0.0, resolve=_oeffentlich,
-        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
-    async with client:
-        ergebnis = await client.text_of("https://example.org/")
-    assert ergebnis.reason == "no_text"
-
-
 def test_repr_des_ergebnisses_nennt_den_kern():
     mit = ExtractedText(url="https://example.org/", text="abc", lang="de",
                         status=200, char_count=3, truncated=False)
@@ -596,3 +582,40 @@ async def test_ein_unlesbarer_status_im_424_bleibt_ebenso_im_vertrag():
     assert ergebnis.reason == "no_text"
     assert ergebnis.status == 0
     assert ergebnis.detail == "nichts zu holen"
+
+
+# --- Eine 200 ohne Antwortobjekt (Audit COR-23-3) ---------------------------
+
+def _dahinter(antwort: httpx.Response) -> TextExtraction:
+    return TextExtraction(BASE, resolve=_oeffentlich, client=httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda _request: antwort)))
+
+
+_ANMELDESEITE = httpx.Response(200, text="<!DOCTYPE html><html>Bitte anmelden</html>",
+                               headers={"content-type": "text/html"})
+
+
+async def test_eine_html_seite_mit_200_ist_ein_fehler_des_dienstes():
+    """Audit COR-23-3 (23.09.2026): hinter einem Proxy, der mit seiner eigenen
+    Seite antwortet, hiess jede Adresse ``reason="no_text"`` -- eine Aussage
+    ueber die Seite, obwohl es eine ueber den Dienst ist. Dieselbe Verwechslung
+    hat API-1 fuer eine Umleitung beseitigt."""
+    async with _dahinter(_ANMELDESEITE) as client:
+        with pytest.raises(ServerError, match="non-JSON"):
+            await client.text_of("https://example.org/seite")
+
+
+async def test_eine_200_mit_einer_liste_ist_ebenso_ein_fehler_des_dienstes():
+    """JSON, aber nicht die Antwortform des Dienstes: auch daraus liest sich
+    keine Aussage ueber die Seite."""
+    async with _dahinter(httpx.Response(200, json=["kein", "objekt"])) as client:
+        with pytest.raises(ServerError, match="list"):
+            await client.text_of("https://example.org/seite")
+
+
+async def test_ping_hinter_dem_proxy_bleibt_im_vertrag():
+    """``ping`` las die Antwort ungeschuetzt -- gemessen
+    ``json.decoder.JSONDecodeError``, ausserhalb jedes Vertrags."""
+    async with _dahinter(_ANMELDESEITE) as client:
+        with pytest.raises(ServerError):
+            await client.ping()

@@ -240,10 +240,20 @@ def _parse_body(body: str) -> tuple[str | None, str, str | None]:
         return None, "", None
     if not isinstance(data, dict):
         return None, "", None
+    # Only text is a class name or a trace. A gateway, WAF or sign-in proxy in
+    # front of the repository answers ``{"error": {"message": ...}}`` -- the
+    # b-api side has read that shape since 2026-09-11 -- and ``true`` or a
+    # number arrive too. Each ended in an AttributeError from ``_short`` or
+    # ``error_class_for``: no status, no retry, outside the contract (audit
+    # COR-23-1). The nested message is kept, or the proxy's words are lost.
+    error, stacktrace = data.get("error"), data.get("stacktrace")
+    message = str(data.get("message") or "")
+    if not message and isinstance(error, dict) and isinstance(error.get("message"), str):
+        message = error["message"]
     return (
-        data.get("error") or None,
-        str(data.get("message") or ""),
-        data.get("stacktrace") or None,
+        error if isinstance(error, str) and error else None,
+        message,
+        stacktrace if isinstance(stacktrace, str) and stacktrace else None,
     )
 
 

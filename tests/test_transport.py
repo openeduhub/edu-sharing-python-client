@@ -1292,3 +1292,17 @@ async def test_eine_domaingebundene_sitzung_geht_ebenso_wenig_mit():
                  path="/edu-sharing")
     with pytest.raises(EduSharingError):
         Transport(REPO, client=httpx.AsyncClient(cookies=speicher))
+
+
+async def test_ein_proxy_mit_fehlerobjekt_bleibt_im_vertrag():
+    """Audit COR-23-1, der Weg, auf dem es gemessen wurde: ein 502 mit
+    ``{"error": {...}}`` von einem Gateway vor dem Repositorium ergab einen
+    ``builtins.AttributeError`` aus ``request`` -- ohne Wiederholung, ohne
+    Status, und ``as_result`` reicht ihn durch."""
+    def proxy(_request):
+        return httpx.Response(502, json={"error": {"code": 502, "message": "Bad gateway"}})
+
+    with pytest.raises(ServerError) as fehler:
+        await _transport(proxy, max_retries=0).request("GET", "/_about")
+    assert fehler.value.status == 502
+    assert "Bad gateway" in str(fehler.value), "die Meldung des Proxys geht nicht verloren"

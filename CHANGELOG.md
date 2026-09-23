@@ -53,6 +53,16 @@ and in [`docs/audits/`](docs/audits/).
   the title is capped like the values (audit SEC-23-2, the class A1 closed in
   `format`).
 
+### Fixed
+
+- **An error object from a proxy no longer crashes a repository call.** The
+  `error` field of a failure body was taken as a Java class name whatever it
+  held; `{"error": {"message": ...}}` from a gateway, WAF or sign-in proxy --
+  or `true`, or a number -- ended in `AttributeError` with no status and no
+  retry. Only text is read as a class name or a trace now, and a nested
+  `message` becomes the error's message, as on the b-api side
+  (audit COR-23-1).
+
 ## [0.3.5] — 2026-09-21
 
 **What was proven, and what was not.** `ruff check .` clean, `mypy` clean over

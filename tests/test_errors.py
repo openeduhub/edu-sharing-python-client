@@ -182,6 +182,25 @@ def test_nicht_json_body_stuerzt_nicht_ab():
     assert exc.error_class is None
 
 
+@pytest.mark.parametrize("status", [400, 404, 500, 502])
+@pytest.mark.parametrize("feld", [{"code": 502, "message": "Bad gateway"}, True, 42, ["x"]])
+def test_ein_fehlerfeld_ohne_text_stuerzt_nicht_ab(status, feld):
+    """Audit COR-23-1 (23.09.2026): ``error`` wurde als Java-Klassenname
+    genommen, was immer es war. Ein Gateway, eine WAF oder ein Anmelde-Proxy
+    vor dem Repositorium antwortet gern mit ``{"error": {...}}`` -- die
+    b-api-Seite kennt diese Form seit dem 11.09.2026, diese nicht. Gemessen:
+    ``AttributeError`` statt eines Fehlers dieser Bibliothek."""
+    import json
+
+    exc = error_from_response(status, URL, json.dumps(
+        {"error": feld, "message": "abgelehnt", "stacktrace": {"kein": "text"}}))
+    assert isinstance(exc, EduSharingError)
+    assert exc.status == status
+    assert exc.error_class is None
+    assert exc.stacktrace is None
+    assert "abgelehnt" in str(exc)
+
+
 def test_attribute_sind_gesetzt():
     exc = error_from_response(
         400, URL, _body("org.edu_sharing.restservices.DAOValidationException", "kaputt"))

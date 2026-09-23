@@ -50,7 +50,7 @@ GERMAN = frozenset("""
 GERMAN_CAPITALISED = frozenset({"Die"})
 
 #: What is scanned, relative to the repository root.
-SCOPES = ("src/edusharing", "scripts")
+SCOPES = ("src/edusharing", "scripts", ".github")
 
 #: German that is data, not prose -- each with the reason it stays.
 ALLOWED_FILES = {
@@ -67,16 +67,26 @@ ALLOWED_TEXT = {
 }
 
 _QUOTED = re.compile(r'``.*?``|"[^"]*"', re.DOTALL)
+#: In YAML a double-quoted string is code -- the Python inside a ``run:`` block
+#: prints its messages from one -- so only double backticks quote there.
+_QUOTED_YAML = re.compile(r"``.*?``")
 _STRING = re.compile(r'^[A-Za-z]*("""|\'\'\'|"|\')(.*)\1$', re.DOTALL)
 _WORD = re.compile(r"[A-Za-zÄÖÜäöüß]+")
 _MIDDLE = {getattr(tokenize, name) for name in ("FSTRING_MIDDLE", "TSTRING_MIDDLE")
            if hasattr(tokenize, name)}
 
 
-def _german(text: str) -> list[str]:
-    prose = _QUOTED.sub(" ", text)
+def _german(text: str, quoted: re.Pattern[str] = _QUOTED) -> list[str]:
+    prose = quoted.sub(" ", text)
     return sorted({w for w in _WORD.findall(prose)
                    if w.lower() in GERMAN or w in GERMAN_CAPITALISED})
+
+
+def _yaml_findings(source: str, label: str) -> list[str]:
+    """Every line, not only comments: a workflow's ``run:`` blocks hold code."""
+    return [f"{label}:{number} line: {' '.join(words)}"
+            for number, line in enumerate(source.splitlines(), 1)
+            if (words := _german(line, _QUOTED_YAML))]
 
 
 def _python_findings(source: str, label: str) -> list[str]:
@@ -116,10 +126,11 @@ def _files() -> list[tuple[Path, str]]:
 
 
 def test_the_hand_written_layer_is_english():
+    readers = {".py": _python_findings, ".yml": _yaml_findings, ".yaml": _yaml_findings}
     findings = [
         hit
-        for path, label in _files() if path.suffix == ".py"
-        for hit in _python_findings(path.read_text(encoding="utf-8"), label)
+        for path, label in _files() if path.suffix in readers
+        for hit in readers[path.suffix](path.read_text(encoding="utf-8"), label)
     ]
     assert findings == [], (
         "German in the English layer (CONTRIBUTING, 'Language') -- translate "
@@ -143,6 +154,17 @@ def test_the_guard_sees_german_and_leaves_quotations_alone():
         "s.py:3 text: von",
         "s.py:7 comment: Die",
     ]
+
+
+def test_the_guard_reads_every_line_of_a_workflow():
+    sample = (
+        "# Die Suite laeuft\n"
+        "      - name: Tests\n"
+        '          print(f"{n} Module geladen, {k} Fehler")\n'
+        "      # ``--exit-code`` reads the diff\n"
+    )
+    assert _yaml_findings(sample, "ci.yml") == [
+        "ci.yml:1 line: Die", "ci.yml:3 line: Fehler"]
 
 
 def test_an_allowed_quotation_exempts_itself_and_nothing_beside_it():

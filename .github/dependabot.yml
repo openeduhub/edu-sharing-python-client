@@ -1,12 +1,12 @@
 version: 2
 
-# `pip-audit` laeuft bei jedem Push und sagt, wenn etwas bereits bekannt kaputt
-# ist. Dass eine neuere Fassung existiert, sagte bisher niemand -- und die
-# Actions sind auf Commits gepinnt, also bewegt sich dort von selbst gar nichts
-# (Audit OPS-20-1).
+# `pip-audit` runs on every push and says when something is already known to
+# be broken. That a newer version exists, nobody said until now -- and the
+# actions are pinned to commits, so nothing there moves by itself at all
+# (audit OPS-20-1).
 #
-# Monatlich: zwei Laufzeitabhaengigkeiten und eine Handvoll gepinnter Actions
-# brauchen keinen woechentlichen Pull Request.
+# Monthly: two runtime dependencies and a handful of pinned actions need no
+# weekly pull request.
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -15,11 +15,11 @@ updates:
     commit-message:
       prefix: "chore"
 
-  # Deckt `pyproject.toml` und `uv.lock` zusammen ab. Das ist der Punkt: CI
-  # installiert mit `--locked`, eine Anhebung ohne neues Lockfile wuerde also
-  # gar nicht installiert. Sollte Dependabot diesen Namen nicht kennen, liest
-  # "pip" die `pyproject.toml` allein, und das Lockfile braucht danach ein
-  # `uv lock` von Hand.
+  # Covers `pyproject.toml` and `uv.lock` together. That is the point: CI
+  # installs with `--locked`, so a bump without a new lockfile would not be
+  # installed at all. Should Dependabot not know this name, "pip" reads
+  # `pyproject.toml` alone, and the lockfile then needs a `uv lock` by
+  # hand.
   - package-ecosystem: "uv"
     directory: "/"
     schedule:

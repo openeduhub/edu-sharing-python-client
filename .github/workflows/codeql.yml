@@ -1,13 +1,12 @@
 name: CodeQL
 
-# Die Suite beweist, was diese Bibliothek tut. Dieser Job fragt etwas anderes:
-# ob der Weg dorthin ein bekannt schlechtes Muster enthaelt -- und er findet es
-# auch in Code, den niemand mehr liest. `pip-audit` deckt die Abhaengigkeiten
-# ab, den eigenen Quelltext deckte bis heute nichts ab (Audit OPS-20-1).
+# The suite proves what this library does. This job asks something else:
+# whether the way there contains a known bad pattern -- and it finds one in
+# code nobody reads any more, too. `pip-audit` covers the dependencies; the
+# library's own source was covered by nothing until now (audit OPS-20-1).
 #
-# Die generierte Schicht bleibt draussen: 1.131 maschinengeschriebene Dateien
-# wuerden jede Trefferliste beherrschen, und von Hand geaendert wird dort
-# nichts.
+# The generated layer stays out: 1,131 machine-written files would dominate
+# every list of findings, and nothing there is changed by hand.
 
 on:
   push:
@@ -15,8 +14,8 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    # Eine neue Abfrage findet auch den Code von gestern, deshalb ist ein
-    # woechentlicher Lauf nicht dasselbe wie einer bei jedem Push.
+    # A new query also finds yesterday's code, so a weekly run is not the same
+    # as one on every push.
     - cron: "17 4 * * 1"
 
 permissions:
@@ -28,13 +27,13 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
-      # Der einzige Weg, auf dem Befunde in den Security-Reiter gelangen.
+      # The only way findings reach the Security tab.
       security-events: write
       actions: read
     steps:
-      # Wie in ci.yml auf den Commit gepinnt, nicht auf das Etikett: ein Tag
-      # laesst sich verschieben, und dann laeuft hier, worauf ihn jemand zeigen
-      # laesst. Der Kommentar nennt die Fassung, fuer die der SHA stand.
+      # Pinned to the commit as in ci.yml, not to the label: a tag can be
+      # moved, and then what runs here is whatever someone points it at. The
+      # comment names the version the SHA stood for.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd  # v4

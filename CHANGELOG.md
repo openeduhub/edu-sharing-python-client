@@ -182,7 +182,9 @@ and in [`docs/audits/`](docs/audits/).
   `build_skill_zip.build`, `.short_description`), their output (`missing:`,
   `stale:`, `orphaned:`) and the provenance note they write into
   `_generated/GENERATED.md`, regenerated with them -- the only file of the
-  layer that changed. A test scans comments, text and names for German words
+  layer that changed. So are the workflows and the Dependabot settings under
+  `.github/`, the Python their `run:` blocks carry included. A test scans
+  comments, text and names for German words -- in a workflow every line --
   and exempts quotations and three named pieces of German data (audit
   MNT-23-2).
 - The generated layer was rebuilt with `openapi-python-client` 0.29.1 (from

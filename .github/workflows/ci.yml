@@ -105,17 +105,16 @@ jobs:
           exit "$rc"
 
   coverage:
-    # Die Suite laeuft in `test` auf fuenf Beinen; dieser Job laeuft sie ein
-    # weiteres Mal, um sie zu messen. Sie wurde bis heute nur lokal gemessen,
-    # also nur, wenn jemand daran dachte -- und Anweisungsabdeckung allein las
-    # 98 %, waehrend ganze zugesagte Fehlerpfade nie liefen: eine Zeile wird
-    # erreicht, der Zweig, der sie ueberspringt, nicht (Audit TST-20-2).
-    # `branch = true` steht in pyproject.toml, damit ein lokaler Lauf dasselbe
-    # misst.
+    # The suite runs in `test` on five legs; this job runs it once more to
+    # measure it. Until then it was measured only locally, so only when
+    # someone remembered -- and statement coverage alone read 98 % while whole
+    # promised error paths never ran: a line is reached, the branch that skips
+    # it is not (audit TST-20-2). `branch = true` stands in pyproject.toml, so
+    # that a local run measures the same.
     #
-    # 97 gegen 97,84 gemessen am 20.09.2026: eine Untergrenze, die ein Absacken
-    # faengt, keine Ratsche, die an Rundung scheitert. Sie steht hier und nicht
-    # in pyproject.toml, weil ein Teillauf naturgemaess darunter liegt.
+    # 97 against 97.84 measured on 2026-09-20: a floor that catches a slide,
+    # not a ratchet that fails on rounding. It stands here and not in
+    # pyproject.toml, because a partial run naturally lies below it.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -130,18 +129,17 @@ jobs:
       - name: Measure
         run: uv run pytest -q --cov --cov-report=term-missing:skip-covered --cov-fail-under=97
 
-  # --- 5.4 der Fremdpruefung vom 09.09.2026 ---------------------------------
+  # --- 5.4 of the external review of 2026-09-09 -----------------------------
   #
-  # Die Suite prueft den Quelltext. Sie prueft nicht, ob daraus ein Paket
-  # wird, das sich installieren laesst, und nicht, ob die eingecheckte
-  # generierte Schicht noch die ist, die aus der Spec faellt. Beides lief in
-  # der Pruefung erfolgreich -- als Gate haette das zweite F15 frueher
-  # gezeigt.
+  # The suite checks the source. It does not check whether that becomes a
+  # package that can be installed, nor whether the checked-in generated layer
+  # is still the one that falls out of the spec. Both passed in the review --
+  # as a gate, the second would have shown F15 earlier.
 
   package:
-    # Ein Wheel, das sich nicht installieren oder nicht importieren laesst,
-    # faellt sonst erst beim ersten Anwender auf. Eine Python-Fassung genuegt:
-    # die Frage ist "wird daraus ein Paket", nicht "laeuft der Code".
+    # A wheel that cannot be installed or imported is otherwise noticed only
+    # by its first user. One Python version is enough: the question is "does
+    # this become a package", not "does the code run".
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -155,40 +153,40 @@ jobs:
       - name: Build
         run: uv build
 
-      # In einer eigenen Umgebung, ohne das Projektverzeichnis: sonst importiert
-      # der naechste Schritt den Quelltext daneben statt des Wheels und
-      # beantwortet eine andere Frage.
+      # In an environment of its own, without the project directory: otherwise
+      # the next step imports the source beside it instead of the wheel and
+      # answers another question.
       - name: Install the wheel
         run: |
           python -m venv /tmp/wheeltest
           /tmp/wheeltest/bin/pip install --quiet dist/*.whl
 
-      # Jedes Modul, nicht nur das Paket: die generierte Schicht sind 1131
-      # Dateien, und ein kaputter Import darin faellt beim Import des Pakets
-      # nicht auf.
+      # Every module, not only the package: the generated layer is 1131
+      # files, and a broken import inside it does not show when the package
+      # is imported.
       - name: Import every module
         run: |
           cd /tmp
           /tmp/wheeltest/bin/python - <<'PY'
           import importlib, pkgutil, sys
           import edusharing
-          fehler = []
-          for modul in pkgutil.walk_packages(edusharing.__path__, "edusharing."):
+          errors = []
+          for module in pkgutil.walk_packages(edusharing.__path__, "edusharing."):
               try:
-                  importlib.import_module(modul.name)
-              except Exception as exc:  # noqa: BLE001 -- jeder Grund zaehlt
-                  fehler.append(f"{modul.name}: {type(exc).__name__}: {exc}")
-          print(f"{len(sys.modules)} Module geladen, {len(fehler)} Fehler")
-          for f in fehler[:20]:
-              print("   ", f)
-          sys.exit(1 if fehler else 0)
+                  importlib.import_module(module.name)
+              except Exception as exc:  # noqa: BLE001 -- every reason counts
+                  errors.append(f"{module.name}: {type(exc).__name__}: {exc}")
+          print(f"{len(sys.modules)} modules loaded, {len(errors)} errors")
+          for error in errors[:20]:
+              print("   ", error)
+          sys.exit(1 if errors else 0)
           PY
 
   generate:
-    # Erzeugt die Schicht neu und verlangt einen sauberen Diff. Ohne das Gate
-    # ist "regenerierbar" eine Behauptung: die eingecheckten Dateien koennen
-    # von Hand geaendert worden sein, oder der Erzeugungsweg kann sich
-    # geaendert haben, ohne dass jemand neu erzeugt hat.
+    # Regenerates the layer and demands a clean diff. Without this gate
+    # "regenerable" is a claim: the checked-in files may have been changed by
+    # hand, or the way of generating may have changed without anyone
+    # regenerating.
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -204,26 +202,26 @@ jobs:
       - name: Regenerate
         run: uv run python scripts/generate_client.py
 
-      # ``--exit-code`` liest den Diff als Ergebnis, nicht als Text. Der Name
-      # der ersten abweichenden Datei steht in der Ausgabe darueber.
+      # ``--exit-code`` reads the diff as a result, not as text. The name of
+      # the first differing file stands in the output above it.
       - name: The checked-in layer is the generated one
         run: |
           git --no-pager diff --stat -- src/edusharing/_generated
           git diff --exit-code -- src/edusharing/_generated
 
-  # --- Abschnitt 7 der Zweitpruefung vom 09.09.2026 -------------------------
+  # --- Section 7 of the second review of 2026-09-09 -------------------------
 
   minimum:
-    # `test` installiert `uv.lock` -- also die *obere* Kante: gemessen am
-    # 09.09.2026 attrs 26.1.0 und httpx 0.28.1. Der Boden, den `pyproject.toml`
-    # zusagt (`httpx>=0.27`, `attrs>=23.2`, `requires-python >=3.11`), lief in
-    # keinem Job. Eine Zusage, die niemand prueft, ist eine Vermutung.
+    # `test` installs `uv.lock` -- the *upper* edge: measured on 2026-09-09,
+    # attrs 26.1.0 and httpx 0.28.1. The floor `pyproject.toml` promises
+    # (`httpx>=0.27`, `attrs>=23.2`, `requires-python >=3.11`) ran in no job.
+    # A promise nobody checks is a guess.
     #
-    # Heute ist dieser Job gruen -- der Boden haelt, gemessen 2221 passed. Sein
-    # Wert liegt nach vorn: der erste Aufruf, der eine neuere httpx-Fassung
-    # braucht, macht ihn rot, waehrend die Matrix weiter gruen bleibt. Dass er
-    # das ueberhaupt kann, ist nachgestellt: mit `attrs==22.1.0` bricht schon
-    # das Einsammeln ab (`field() got an unexpected keyword argument 'alias'`).
+    # Today this job is green -- the floor holds, measured 2221 passed. Its
+    # value lies ahead: the first call that needs a newer httpx turns it red
+    # while the matrix stays green. That it can do so at all was reproduced:
+    # with `attrs==22.1.0` even the collection breaks off
+    # (`field() got an unexpected keyword argument 'alias'`).
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -234,12 +232,12 @@ jobs:
       - name: Install uv
         run: pip install uv==0.12.10
 
-      # Die Pins kommen aus der Deklaration, nicht aus dieser Datei. Stuenden
-      # sie hier, pruefte dieser Job nach einem angehobenen `>=` weiter die
-      # alte Fassung -- und die neue, tatsaechlich zugesagte, keine.
+      # The pins come from the declaration, not from this file. Were they
+      # written here, this job would go on checking the old version after a
+      # raised `>=` -- and the new one, the one actually promised, not at all.
       #
-      # Eine Form, die das Muster nicht trifft (etwa `httpx>=0.27,<1.0`), laesst
-      # den Job stehen statt die Abhaengigkeit stillschweigend zu ueberspringen.
+      # A form the pattern does not match (say `httpx>=0.27,<1.0`) stops the
+      # job rather than skipping the dependency silently.
       - name: Read the declared floors
         run: |
           python - > "$RUNNER_TEMP/floors.txt" <<'PY'
@@ -252,26 +250,25 @@ jobs:
           )["project"]["dependencies"]
           pins = []
           for dep in deps:
-              passt = re.fullmatch(
+              match = re.fullmatch(
                   r"([A-Za-z0-9._-]+)\s*>=\s*([0-9][0-9A-Za-z.*+!-]*)", dep.strip())
-              if not passt:
+              if not match:
                   raise SystemExit(
-                      f"{dep!r} ist keine reine >=-Untergrenze. Dieser Job kennt "
-                      "nur die; lieber laut stehenbleiben als die Abhaengigkeit "
-                      "ungeprueft lassen.")
-              pins.append(f"{passt.group(1)}=={passt.group(2)}")
+                      f"{dep!r} is not a plain >= floor. This job knows only "
+                      "those; better to stop loudly than to leave the "
+                      "dependency unchecked.")
+              pins.append(f"{match.group(1)}=={match.group(2)}")
           print(" ".join(pins))
           PY
           cat "$RUNNER_TEMP/floors.txt"
 
-      # Die Umgebung liegt ausserhalb des Arbeitsverzeichnisses: mehrere Tests
-      # laufen mit `rglob` ueber das Repository, und ein venv daneben waere fuer
-      # sie einfach mehr Repository.
+      # The environment lies outside the working directory: several tests walk
+      # the repository with `rglob`, and a venv beside it would simply be more
+      # repository to them.
       #
-      # `--no-deps` fuer das Projekt, sonst loest der Aufloeser `>=` nach oben
-      # auf und installiert genau das, was dieser Job nicht meint. pytest ist
-      # nicht gepinnt: die Frage sind die Laufzeitabhaengigkeiten, nicht das
-      # Werkzeug.
+      # `--no-deps` for the project, otherwise the resolver resolves `>=`
+      # upwards and installs exactly what this job does not mean. pytest is
+      # not pinned: the question is the runtime dependencies, not the tool.
       - name: Install at the declared floor
         run: |
           python -m venv "$RUNNER_TEMP/floor"

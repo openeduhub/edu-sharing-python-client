@@ -119,11 +119,10 @@ async def answer_from_candidates(
         # exactly one request, and a caller who names a model is not
         # asking the library to look around.
         response = await api._request("POST", path, json=body_for(model))
-        # Erst lesen, dann merken: ``last_model`` sagt, von wem die Antwort
-        # kam, und eine Antwort, die diese Bibliothek nicht lesen kann, ist
-        # keine. Die Schleife unten haelt es genauso, und die Referenz nennt
-        # das als Regel -- am 21.09.2026 fielen die beiden Zweige kurz
-        # auseinander.
+        # Read first, then remember: ``last_model`` says whom the answer came
+        # from, and an answer this library cannot read is none. The loop below
+        # does the same, and the reference states it as the rule -- on
+        # 2026-09-21 the two branches briefly drifted apart.
         answer = parse(response, model)
         api.last_model = model
         return answer

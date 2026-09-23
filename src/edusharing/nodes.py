@@ -439,7 +439,7 @@ class ChildPage:
     offset: int
 
     def __repr__(self) -> str:
-        return f"ChildPage({len(self.nodes)} von {self.total}, ab {self.offset})"
+        return f"ChildPage({len(self.nodes)} of {self.total}, from {self.offset})"
 
 
 class Nodes:

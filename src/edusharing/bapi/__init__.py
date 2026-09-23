@@ -47,7 +47,7 @@ from .templates import BapiTemplates, NodeConfig
 
 __all__ = ["BildungsAPI", "BapiTemplates", "NodeConfig", "Model", "pick_model", "rank_models",
            "build_body", "read_answer",
-           # Modellwahl und Auslastung
+           # Model choice and load
            "LoadReport", "load_report", "rank_among", "CACHE_FOREVER",
-           # Die durchgereichten OpenAI-Routen
+           # The forwarded OpenAI routes
            "Moderation", "GeneratedImage", "Answer"]

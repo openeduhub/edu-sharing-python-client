@@ -419,12 +419,12 @@ async def call_multipart(
     # CR/LF wrote a header line of its own (audit SEC-23-3).
     if content_type is not None:
         check_mimetype(content_type, name="content_type")
-    teil: tuple[str, bytes] | tuple[str, bytes, str] = (
+    part: tuple[str, bytes] | tuple[str, bytes, str] = (
         (filename, file) if content_type is None
         else (filename, file, content_type))
     answer = await api._request(
         "POST", _route_path(route, provider or api.provider),
-        files={field: teil}, data=dict(fields), repeatable=idempotent)
+        files={field: part}, data=dict(fields), repeatable=idempotent)
     return _object(answer, route)
 
 

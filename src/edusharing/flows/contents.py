@@ -120,17 +120,17 @@ async def collection_contents(
     )
 
     aliases = repo.searcher.field_aliases
-    roh_material = list(nodes_response.get("nodes") or [])
+    raw_materials = list(nodes_response.get("nodes") or [])
     materials = [
         hit_as_dict(SearchHit.from_node(node, repo.url, metadata_profile=repo.metadata_profile),
                     aliases, properties=properties)
-        for node in roh_material[:limit]
+        for node in raw_materials[:limit]
     ]
-    roh_unter = list(collections_response.get("collections") or [])
+    raw_collections = list(collections_response.get("collections") or [])
     children = [
         hit_as_dict(SearchHit.from_node(node, repo.url, metadata_profile=repo.metadata_profile),
                     aliases, properties=properties)
-        for node in roh_unter[:limit]
+        for node in raw_collections[:limit]
     ]
 
     # This endpoint names a real total -- measured 2026-09-08 against staging:
@@ -146,10 +146,11 @@ async def collection_contents(
     # one record above ``limit`` decides it without any total; a stated one
     # still counts, because whoever says 12 and delivers 6 has answered the
     # question. Same shape as ``dto.page_cut``.
-    gesagt_material = page_total(nodes_response, default=-1)
-    gesagt_unter = page_total(collections_response, default=-1)
-    gekuerzt = page_cut(roh_unter, collections_response, limit)
-    gesamt_unter = gesagt_unter if gesagt_unter >= 0 else len(roh_unter)
+    stated_materials = page_total(nodes_response, default=-1)
+    stated_collections = page_total(collections_response, default=-1)
+    truncated = page_cut(raw_collections, collections_response, limit)
+    total_collections = (stated_collections if stated_collections >= 0
+                         else len(raw_collections))
     return {
         "id": collection_id,
         "materials": materials,
@@ -159,12 +160,12 @@ async def collection_contents(
         # materials. Whoever compares the two numbers read from them that there is
         # less than they are holding (review 2026-09-09). ``offset +``, because
         # the page only begins there.
-        "total_materials": (gesagt_material if gesagt_material >= 0
-                            else offset + len(roh_material)),
+        "total_materials": (stated_materials if stated_materials >= 0
+                            else offset + len(raw_materials)),
         "returned_materials": len(materials),
-        "total_collections": gesamt_unter,
+        "total_collections": total_collections,
         "returned_collections": len(children),
-        "collections_truncated": gekuerzt,
+        "collections_truncated": truncated,
     }
 
 

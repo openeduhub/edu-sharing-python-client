@@ -322,8 +322,10 @@ def test_childpage_ist_unveraenderlich():
 
 
 def test_childpage_repr_nennt_die_zahlen():
+    """Englisch, wie die ganze Bibliothek -- bis zum Audit MNT-23-2
+    (23.09.2026) stand hier "0 von 42, ab 10"."""
     assert repr(ChildPage(nodes=(), total=42, offset=10)) == \
-        "ChildPage(0 von 42, ab 10)"
+        "ChildPage(0 of 42, from 10)"
 
 
 async def test_ein_nicht_angekommener_titel_wird_gemeldet():

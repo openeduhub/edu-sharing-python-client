@@ -171,6 +171,14 @@ and in [`docs/audits/`](docs/audits/).
   last attempt and 34 in all, where the module itself calls anything past
   `max_retry_after` a hang. No wait exceeds `max_retry_after` now, and a
   budget of 2 000 retries no longer overflows (audit API-23-3).
+- **The English layer is English, and a guard keeps it so.** German had
+  survived the refactor of 2026-09-20 or come in after it: a comment block in
+  `bapi/choice.py`, two in `bapi/__init__.py`, identifiers in
+  `bapi/passthrough.py`, `flows/tree.py` and -- beyond the audit's list --
+  six in `flows/contents.py`, and `ChildPage.__repr__`, which printed
+  `ChildPage(0 von 42, ab 10)` and now prints `ChildPage(0 of 42, from 10)`.
+  A test scans comments, text and names for German words and exempts
+  quotations and three named pieces of German data (audit MNT-23-2).
 - The generated layer was rebuilt with `openapi-python-client` 0.29.1 (from
   0.29.0), which changed 327 of its files: generated enums are `StrEnum`
   rather than `Enum`, empty docstrings are gone, and two admin Lucene

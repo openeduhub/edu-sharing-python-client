@@ -177,11 +177,11 @@ async def _walk_collections(
                 raise
             failed.append((node_id, exc))
             continue
-        roh = list(response.get("collections") or [])
-        if page_cut(roh, response, max_collections):
+        listed = list(response.get("collections") or [])
+        if page_cut(listed, response, max_collections):
             # More than one page lists: the rest is neither read nor followed.
             truncated = True
-        for data in roh[:max_collections]:
+        for data in listed[:max_collections]:
             child_id = node_id_of(data)
             if not child_id or child_id in seen:
                 # Already reached, and -- breadth first -- by a path at least

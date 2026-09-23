@@ -243,9 +243,14 @@ class MetadataAgent:
                 ``ccm:oeh_extendedType`` field. Answering with an empty list
                 would hide a renamed field behind "no content types".
         """
+        # A copy on every return, the first included: the list belongs to the
+        # caller, and nothing expires this cache -- a caller's ``clear()`` on the
+        # stored list answered "no content types" for the life of the object
+        # (audit MNT-23-1; the b-api model cache and the vocabulary had the same
+        # defect). ``ContentType`` is frozen, so a shallow copy is enough.
         cached = self._types.get((context, version))
         if cached is not None:
-            return cached
+            return list(cached)
 
         core = await self.schema(CORE_SCHEMA, context=context, version=version)
         field = next((e for e in core.get("fields") or []
@@ -270,7 +275,7 @@ class MetadataAgent:
             for concept in (vocabulary.get("concepts") or [])
         ]
         self._types[(context, version)] = types
-        return types
+        return list(types)
 
     async def content_type_for(
         self, uri: str, *, context: str = DEFAULT_CONTEXT,

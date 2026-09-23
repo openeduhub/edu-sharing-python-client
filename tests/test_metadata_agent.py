@@ -193,6 +193,26 @@ async def test_die_inhaltsarten_werden_gemerkt():
     assert len(geholt) == 1, f"core.json {len(geholt)}x geholt: {aufrufe}"
 
 
+@pytest.mark.parametrize("welcher", ["erster", "gemerkter"])
+async def test_die_zurueckgegebene_liste_gehoert_dem_aufrufer(welcher):
+    """Audit MNT-23-1 (23.09.2026): ``content_types`` gab die gespeicherte
+    Liste selbst heraus -- beim ersten Aufruf wie bei jedem gemerkten -- und
+    nichts laesst sie ablaufen. Gemessen: nach einem ``clear()`` beim Aufrufer
+    kamen 0 Inhaltsarten ohne Anfrage zurueck, und ``content_type_for``
+    antwortete fuer jede URI ``None``. Dieselbe Klasse wie MNT-20-1 beim
+    b-api-Modellcache und F02 beim Vokabular."""
+    async with _agent(_router) as agent:
+        arten = await agent.content_types()
+        if welcher == "gemerkter":
+            arten = await agent.content_types()
+        arten.clear()
+        danach = await agent.content_types()
+        gefunden = await agent.content_type_for(
+            "http://w3id.org/openeduhub/vocabs/contentTypes/person")
+    assert len(danach) == 2
+    assert gefunden is not None
+
+
 async def test_verschiedene_versionen_werden_getrennt_gemerkt():
     """Sonst bekaeme die zweite Version die Zuordnung der ersten."""
     aufrufe = []

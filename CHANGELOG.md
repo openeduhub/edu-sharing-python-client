@@ -67,6 +67,11 @@ and in [`docs/audits/`](docs/audits/).
   `ValueError`, so `except SilentDropError` -- the pattern the reference
   prints -- went past it, and `as_result` let it through. `dropped` names the
   property (audit COR-23-2).
+- **`MetadataAgent.content_types` hands out copies.** It returned the cached
+  list itself, and nothing expires that cache: a caller's `clear()` made every
+  later call answer "no content types", and `content_type_for` `None` for
+  every URI, for the life of the object -- the class MNT-20-1 fixed for the
+  b-api model cache (audit MNT-23-1).
 
 ## [0.3.5] — 2026-09-21
 

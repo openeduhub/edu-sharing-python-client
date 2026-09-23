@@ -297,6 +297,10 @@ def error_class_for(
         403: PermissionDeniedError,
         404: NotFoundError,
         409: ConflictError,
+        # A rejected request body -- what the FastAPI services beside the
+        # repository answer, and a request no retry will change. It was an
+        # untyped EduSharingError in all five clients (audit API-23-4).
+        422: ValidationError,
         429: RateLimitedError,
     }.get(status, EduSharingError)
 

@@ -106,6 +106,14 @@ and in [`docs/audits/`](docs/audits/).
   behaviour keeps working; it also catches a server's 400 now, which is the
   same statement -- the request is wrong. A guard walks the hand-written
   layer and fails on any `raise` of a built-in exception (audit API-23-1).
+- **The same failure has the same type in every client.** A network failure
+  was a `TransportError` from the repository and a bare `EduSharingError` from
+  the b-api, the template mode, the extraction service and the metadata
+  agent; the extraction service mapped every status but 429 to a bare
+  `EduSharingError`; and a 422 -- a rejected body -- was untyped in all five.
+  Now `TransportError` is raised everywhere for the network, the extraction
+  service types its statuses like the others, and 422 is a `ValidationError`.
+  One test asks all five clients the same questions (audit API-23-4).
 
 ## [0.3.5] — 2026-09-21
 

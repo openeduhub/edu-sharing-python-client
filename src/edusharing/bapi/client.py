@@ -42,6 +42,7 @@ from .._http import _read_bounded_response
 from ..errors import (
     EduSharingError,
     RateLimitedError,
+    TransportError,
     at_least,
     check_client,
     error_class_for,
@@ -510,9 +511,12 @@ class BildungsAPI:
                         method, url, response_bytes=response_bytes,
                         max_bytes=max_bytes, **kwargs)
             except httpx.HTTPError as exc:
-                last = EduSharingError(f"{type(exc).__name__}: {exc}", url=url)
+                # TransportError, as the repository's transport has always said
+                # it: the failure is the network's, and whether the request
+                # arrived is unknown (audit API-23-4).
+                last = TransportError(f"{type(exc).__name__}: {exc}", url=url)
                 if not repeatable and not isinstance(exc, _BEFORE_SENDING):
-                    raise EduSharingError(
+                    raise TransportError(
                         f"{type(exc).__name__}: {exc} -- the request may have "
                         "arrived and been stored. Check before sending it again.",
                         url=url) from exc

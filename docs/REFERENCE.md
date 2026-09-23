@@ -1717,11 +1717,11 @@ Every failure is an `EduSharingError`. Catch that one to catch them all.
 | Class | Raised when |
 |---|---|
 | `EduSharingError` | the base — every other one is a subclass |
-| `TransportError` | timeout, DNS, TLS, dropped connection |
+| `TransportError` | timeout, DNS, TLS, dropped connection — from every client, the repository and the four services beside it alike |
 | `AuthenticationError` | not signed in, or wrong credentials (401) |
 | `PermissionDeniedError` | signed in, not allowed (403) |
 | `NotFoundError` | no such node, collection or group (404) |
-| `ValidationError` | the request is wrong: found before sending (an unknown short name, an empty filename, an empty query or proposal) **or** refused by the server with 400 — a criterion this metadata set does not know, a template id it has no configuration for. Also a `ValueError`: the input checks raised a bare one until 2026-09-23, and an `except ValueError` written against them still catches them |
+| `ValidationError` | the request is wrong: found before sending (an unknown short name, an empty filename, an empty query or proposal) **or** refused by the server with 400 or 422 — a criterion this metadata set does not know, a template id it has no configuration for, a body a service rejects. Also a `ValueError`: the input checks raised a bare one until 2026-09-23, and an `except ValueError` written against them still catches them |
 | `ConflictError` | the repository refuses the state (409) |
 | `ServerError` | the instance failed (5xx) |
 | `RateLimitedError` | too many requests (429) — `retry_after` carries the seconds the server named |

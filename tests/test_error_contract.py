@@ -14,13 +14,24 @@ import builtins
 from pathlib import Path
 
 import httpx
+import pytest
 
 from edusharing.agent import as_result
-from edusharing.errors import EduSharingError, ValidationError
+from edusharing.bapi import BapiTemplates, BildungsAPI
+from edusharing.errors import (
+    EduSharingError,
+    NotFoundError,
+    ServerError,
+    TransportError,
+    ValidationError,
+)
+from edusharing.extraction import TextExtraction
+from edusharing.metadata_agent import MetadataAgent
 from edusharing.nodes import Nodes
 from edusharing.transport import Transport
 
 SOURCE = Path(__file__).resolve().parent.parent / "src" / "edusharing"
+BASE = "https://service.example.test"
 
 #: The built-in exceptions, by name. A ``raise`` that constructs one of these
 #: leaves the contract. Re-raising a caught object (``raise last``) constructs
@@ -90,3 +101,57 @@ async def test_an_input_refusal_reaches_a_tool_as_a_result():
     result = await as_result(loaded.content.set_preview(b""))
     assert result.ok is False
     assert result.error_type == "ValidationError"
+
+
+# --- The same failure, the same type, in every client --------------------------
+
+def _clients(handler):
+    """One of each of the five clients over the same handler, each asked the
+    simplest thing it can be asked, with no retry to wait through."""
+    def http():
+        return httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+    return {
+        "repository": (Transport(f"{BASE}/edu-sharing", max_retries=0, client=http()),
+                       lambda c: c.request("GET", "/_about")),
+        "b-api": (BildungsAPI("k", base_url=BASE, max_retries=0, client=http()),
+                  lambda c: c.models()),
+        "templates": (BapiTemplates("k", base_url=BASE, metadataset="mds", max_retries=0,
+                                    client=http()),
+                      lambda c: c.chat(["cfg"], context_node_id="n-1")),
+        "extraction": (TextExtraction(BASE, max_retries=0, client=http()),
+                       lambda c: c.ping()),
+        "metadata agent": (MetadataAgent(BASE, client=http()),
+                           lambda c: c.schemas()),
+    }
+
+
+CLIENTS = sorted(_clients(lambda r: httpx.Response(200)))
+
+
+def _unreachable(request):
+    raise httpx.ConnectError("connection refused", request=request)
+
+
+@pytest.mark.parametrize("name", CLIENTS)
+async def test_a_network_failure_is_a_transport_error_in_every_client(name):
+    """Audit API-23-4 (2026-09-23): the reference names ``TransportError`` for
+    "timeout, DNS, TLS, dropped connection", and ``ToolResult.error_type``
+    exists so a tool can tell that from a refusal. Only the repository's
+    transport raised it; the four sibling clients raised a bare
+    ``EduSharingError`` for the same failure."""
+    client, call = _clients(_unreachable)[name]
+    with pytest.raises(TransportError):
+        await call(client)
+
+
+@pytest.mark.parametrize(("status", "expected"), [
+    (404, NotFoundError), (422, ValidationError), (500, ServerError)])
+@pytest.mark.parametrize("name", CLIENTS)
+async def test_a_status_means_the_same_in_every_client(name, status, expected):
+    """The extraction service mapped every failure but 429 to a bare
+    ``EduSharingError``, and a 422 -- a rejected request body, what FastAPI
+    services answer -- was untyped in all five."""
+    client, call = _clients(lambda r: httpx.Response(status, json={"message": "x"}))[name]
+    with pytest.raises(expected):
+        await call(client)

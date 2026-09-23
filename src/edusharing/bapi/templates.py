@@ -39,6 +39,7 @@ import httpx
 from ..errors import (
     EduSharingError,
     RateLimitedError,
+    TransportError,
     ValidationError,
     at_least,
     check_client,
@@ -442,11 +443,13 @@ class BapiTemplates:
                         headers={"X-API-KEY": self._api_key,
                                  "Accept": "application/json"})
             except httpx.HTTPError as exc:
-                last = EduSharingError(f"{type(exc).__name__}: {exc}", url=url)
+                # TransportError, the type the repository's transport uses for
+                # the same failure (audit API-23-4).
+                last = TransportError(f"{type(exc).__name__}: {exc}", url=url)
                 # Before these nothing went over the wire, so nothing can have
                 # been stored -- the repository's transport draws the same line.
                 if writes and not isinstance(exc, _BEFORE_SENDING):
-                    raise EduSharingError(
+                    raise TransportError(
                         f"{type(exc).__name__}: {exc} -- the request may have "
                         "arrived and been stored. Check before sending it again.",
                         url=url) from exc

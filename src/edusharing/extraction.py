@@ -59,9 +59,11 @@ import httpx
 from .errors import (
     EduSharingError,
     RateLimitedError,
+    TransportError,
     ValidationError,
     at_least,
     check_client,
+    error_class_for,
     redirect_error,
 )
 from .retry import RETRYABLE_STATUS, RetryPolicy, parse_retry_after
@@ -260,9 +262,10 @@ class TextExtraction:
             error** -- ``reason`` says which of the four causes it was.
 
         Raises:
-            ValidationError: for an unknown ``method`` or a ``max_chars`` below one.
-            EduSharingError: when the service itself fails -- a rejected body
-                (422) or an error it kept answering with after the retries.
+            ValidationError: for an unknown ``method`` or a ``max_chars`` below
+                one, and for a body the service rejects (422).
+            ServerError: when the service fails, and still fails after the
+                retries; ``TransportError`` when it cannot be reached.
         """
         if method not in METHODS:
             raise ValidationError(
@@ -379,7 +382,10 @@ class TextExtraction:
                     method, f"{self.base_url}{path}", **kwargs
                 )
             except httpx.HTTPError as exc:
-                last = EduSharingError(f"{type(exc).__name__}: {exc}")
+                # The type the repository's transport uses for the same failure
+                # (audit API-23-4).
+                last = TransportError(f"{type(exc).__name__}: {exc}",
+                                      url=f"{self.base_url}{path}")
                 continue
             # A 3xx used to fall into the branch below, arrive at ``_result``
             # with an empty body and come out as ``no_text`` -- a statement
@@ -396,13 +402,15 @@ class TextExtraction:
             if response.status_code < 400 or response.status_code == 424:
                 return response
             status = response.status_code
-            # Only the 429 gets a type of its own: it is the one status a
-            # caller acts on differently -- wait, then come back (audit API-2).
-            failure = RateLimitedError if status == 429 else EduSharingError
+            # Typed by status as in every other client. Only the 429 had a type
+            # of its own here (audit API-2); a 5xx, a rejected body (422) or a
+            # 404 came back as a bare EduSharingError, so a tool could not tell
+            # "the service is down" from "the request is wrong" (audit API-23-4).
+            failure = error_class_for(status)
             last = failure(
                 f"The extraction service answered HTTP {status} "
                 f"for {path}: {response.text[:200]}",
-                status=status,
+                status=status, url=f"{self.base_url}{path}",
                 # Only the 429 -- see ``error_from_response`` for why.
                 retry_after=(parse_retry_after(response.headers.get("retry-after"))
                              if failure is RateLimitedError else None),

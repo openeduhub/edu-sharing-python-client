@@ -43,6 +43,7 @@ import httpx
 
 from .errors import (
     EduSharingError,
+    TransportError,
     at_least,
     check_client,
     error_from_response,
@@ -299,7 +300,9 @@ class MetadataAgent:
         try:
             response = await self._client.get(f"{self.base_url}{path}")
         except httpx.HTTPError as exc:
-            raise EduSharingError(
+            # The type the repository's transport uses for the same failure
+            # (audit API-23-4).
+            raise TransportError(
                 f"{type(exc).__name__}: {exc}", url=f"{self.base_url}{path}"
             ) from exc
         url = f"{self.base_url}{path}"

@@ -39,6 +39,7 @@ from .errors import (
     RateLimitedError,
     ServerError,
     TransportError,
+    ValidationError,
     at_least,
     check_client,
     details_withheld,
@@ -48,7 +49,7 @@ from .errors import (
     whole_number,
 )
 from .retry import RetryPolicy, parse_retry_after
-from .urls import normalize_repository_url, rest_base
+from .urls import normalize_repository_url, rest_base, unparseable_reason
 
 __all__ = ["Transport"]
 
@@ -355,8 +356,20 @@ class Transport:
             TransportError: when the request never reached the server -- or
                 may have, and must not be sent twice.
             ContentTooLargeError: above ``max_bytes``.
+            ValidationError: for an address httpx cannot read, before
+                anything is sent.
         """
         url = self._resolve(path)
+        reason = unparseable_reason(url)
+        if reason is not None:
+            # ``httpx.InvalidURL`` is not an ``httpx.HTTPError``: it went past
+            # the ``except`` below, and for a foreign address ``_for_log``
+            # raised it before that, from a log line (audit COR-23-4). The
+            # message leaves the address out -- a signed link keeps its secret
+            # in the path, which is why ``_for_log`` shows a foreign host only
+            # -- and ``url`` carries it whole.
+            raise ValidationError(
+                f"The address for this {method} cannot be used: {reason}", url=url)
         cred = self.credential if credential is None else credential_from(credential)
         request_headers = self._headers(url, cred, headers)
 

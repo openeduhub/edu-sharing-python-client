@@ -60,6 +60,13 @@ and in [`docs/audits/`](docs/audits/).
   `content_type`, before anything is sent (audit SEC-23-3). The rule itself
   now lives in `_checks`, beside the locale rule, where the next module that
   needs either finds it (audit ARC-23-1).
+- **A refused address no longer repeats its password.** `unsafe_url_syntax`
+  and `unsafe_url_reason` answered an address `urlsplit` cannot read with
+  "unparseable (...)" and the parser's words -- and for a full-width
+  character in the user name those repeat the whole authority, credentials
+  included, before the rule against credentials in an address can refuse
+  them. Found while closing COR-23-4; the parser's words are masked now,
+  there and in the new `unparseable_reason`.
 
 ### Fixed
 
@@ -96,6 +103,20 @@ and in [`docs/audits/`](docs/audits/).
   `download(max_bytes=...)` in `ValueError`; they read ASCII digits only, as
   Content-Length and Retry-After always were, and a guard fails on an
   `isdigit()` without `isascii()` beside it (audit COR-23-5).
+- **An address httpx cannot read is refused where it is given.**
+  `httpx.InvalidURL` is not an `httpx.HTTPError`, so it went past every
+  client's `except`. `Repository("https:repo.example.test")` -- the scheme
+  without its `//` -- became `https://https:repo.example.test` and failed on
+  the first request with "Invalid port"; a port such as `:abc` passed both
+  address checks, `service_base_url("https://[::1")` raised a bare
+  `ValueError`, and a path or a stored `downloadUrl` with a control character
+  ended `repo.raw` and every download in `InvalidURL` -- for a foreign
+  address from a log line, before the request. The repository and service
+  addresses now refuse the scheme without `//` and anything httpx or the port
+  rule refuses, a port outside 0-65535 included, which httpx reads and fails
+  on only after every retry; the transport answers an address it cannot read
+  with a `ValidationError` before sending, naming neither path nor query
+  (audit COR-23-4).
 - **A proxy's page is no longer read as "this page has no text".** The
   extraction service read a success without its answer object as `{}` and
   answered `reason="no_text"` -- a statement about the page, for every

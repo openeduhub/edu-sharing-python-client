@@ -4,12 +4,13 @@ Operators name their repository sometimes as a bare domain, sometimes with
 ``/edu-sharing``, sometimes with the ``/rest`` from the API docs appended. All
 of these mean the same thing, so all of them should work.
 
-Four forms do NOT mean it and are rejected rather than silently guessed at: a
+Five forms do NOT mean it and are rejected rather than silently guessed at: a
 deep link to a page, a doubled ``/edu-sharing``, credentials inside the
-address, and a scheme that is not http(s) -- ``ftp://`` as much as the typo
-``https:/``. The first two would otherwise make every single call end in 404
-with nothing anywhere saying why; the last two would put a password into
-every log line.
+address, a scheme that is not http(s) -- ``ftp://`` as much as the typos
+``https:/`` and ``https:`` -- and anything httpx cannot read. The first two
+would otherwise make every single call end in 404 with nothing anywhere saying
+why; the next two would put a password into every log line; the last failed
+on the first request, past every ``except``.
 """
 
 from __future__ import annotations
@@ -18,11 +19,14 @@ import ipaddress
 import re
 from urllib.parse import quote, urlsplit
 
+import httpx
+
 from .errors import EduSharingError
 
-#: ``refuse_userinfo``, ``mask_userinfo`` and ``service_base_url`` are shared
-#: between modules but not part of the caller-facing surface -- they take this
-#: library's own wording as arguments. What stands here is documented in
+#: ``refuse_userinfo``, ``mask_userinfo``, ``service_base_url`` and
+#: ``unparseable_reason`` are shared between modules but not part of the
+#: caller-facing surface -- they take this library's own wording as arguments,
+#: or answer in httpx's. What stands here is documented in
 #: REFERENCE and watched by ``test_docs_complete``.
 __all__ = ["normalize_repository_url", "path_segment", "rest_base",
            "is_unroutable_host", "unsafe_url_reason",
@@ -79,8 +83,9 @@ def normalize_repository_url(raw: str) -> str:
 
     Raises:
         EduSharingError: on empty input, a deep link, a doubled
-            ``/edu-sharing``, credentials in the address, or a scheme other
-            than http(s).
+            ``/edu-sharing``, credentials in the address, a scheme other
+            than http(s) or one without its ``//``, or an address httpx
+            cannot read (``unparseable_reason``).
     """
     url = (raw or "").strip()
     if not url:
@@ -107,6 +112,13 @@ def normalize_repository_url(raw: str) -> str:
             f"The address {mask_userinfo(url)!r} does not start with http:// or "
             "https://. Only those are repository addresses; a bare host is "
             "completed with https://."
+        )
+    if re.match(r"^https?:(?!//)", url, flags=re.IGNORECASE):
+        # "https:host" matched neither check and was read as a bare host:
+        # "https://https:host", whose port is "host" (audit COR-23-4).
+        raise EduSharingError(
+            f"The address {mask_userinfo(url)!r} lacks the '//' after its "
+            "scheme. Write it as https://host."
         )
     if not re.match(r"^https?://", url, flags=re.IGNORECASE):
         url = f"https://{url}"
@@ -140,12 +152,36 @@ def normalize_repository_url(raw: str) -> str:
     if count == 0:
         url += _APP_SEGMENT
 
+    reason = unparseable_reason(url)
+    if reason is not None:
+        raise EduSharingError(f"The address {mask_userinfo(url)!r} cannot be used: {reason}")
     return url
 
 
 def rest_base(repository_url: str) -> str:
     """The REST root for a normalised repository URL."""
     return f"{repository_url}/rest"
+
+
+def unparseable_reason(url: str) -> str | None:
+    """Why httpx or the port rule would refuse ``url`` -- or ``None``.
+
+    ``httpx.InvalidURL`` is not an ``httpx.HTTPError``: an address that failed
+    only there went past every client's ``except`` on its first request
+    (audit COR-23-4). A port outside 0-65535 httpx still reads; it fails on
+    connecting, after every retry, and can never work, so it counts too.
+
+    The reason is httpx's or ``urlsplit``'s own words, credentials masked:
+    one of the latter repeats the authority.
+    """
+    try:
+        httpx.URL(url)
+        # Read for the check alone: it raises for a port out of range or not a
+        # number, and for a bracket that opens an IPv6 host without closing it.
+        urlsplit(url).port  # noqa: B018
+    except (httpx.InvalidURL, ValueError) as exc:
+        return mask_userinfo(str(exc))
+    return None
 
 
 def service_base_url(value: str, *, service: str, instead: str, example: str) -> str:
@@ -175,10 +211,18 @@ def service_base_url(value: str, *, service: str, instead: str, example: str) ->
 
     Raises:
         EduSharingError: for credentials in the address, a missing or foreign
-            scheme, a missing host, or a query or fragment.
+            scheme, a missing host, a query or fragment, or an address httpx
+            cannot read (``unparseable_reason``).
     """
     cleaned = (value or "").strip()
     refuse_userinfo(cleaned, instead=instead)
+    # Before ``urlsplit`` below, which raises a bare ``ValueError`` for
+    # "https://[::1" (audit COR-23-4).
+    reason = unparseable_reason(cleaned)
+    if reason is not None:
+        raise EduSharingError(
+            f"{value!r} cannot be used as the base address for {service}: {reason}"
+        )
     parts = urlsplit(cleaned)
     if parts.scheme not in ("http", "https") or not parts.netloc:
         raise EduSharingError(
@@ -299,7 +343,9 @@ def unsafe_url_syntax(url: str) -> str | None:
     try:
         parts = urlsplit(url.strip())
     except ValueError as exc:
-        return f"unparseable ({exc})"
+        # One of its messages repeats the whole authority, credentials and all
+        # -- before the rule below could refuse them (audit COR-23-4).
+        return f"unparseable ({mask_userinfo(str(exc))})"
     if "@" in parts.netloc:
         return "the address embeds credentials (user:pass@host)"
     return None
@@ -329,7 +375,7 @@ def unsafe_url_reason(url: str) -> str | None:
     try:
         parts = urlsplit(url.strip())
     except ValueError as exc:
-        return f"unparseable ({exc})"
+        return f"unparseable ({mask_userinfo(str(exc))})"
 
     if parts.scheme.lower() not in ALLOWED_SCHEMES:
         return f"scheme {parts.scheme or '(none)'!r} -- only http and https are allowed"
@@ -337,7 +383,7 @@ def unsafe_url_reason(url: str) -> str | None:
     try:
         host = parts.hostname
     except ValueError as exc:
-        return f"host unparseable ({exc})"
+        return f"host unparseable ({mask_userinfo(str(exc))})"
     if not host:
         return "no host"
 

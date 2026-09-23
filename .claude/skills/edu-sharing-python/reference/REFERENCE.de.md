@@ -1774,7 +1774,7 @@ Jeder Fehlschlag ist ein `EduSharingError`. Wer den fängt, fängt alle.
 | `AuthenticationError` | nicht angemeldet, oder falsche Zugangsdaten (401) |
 | `PermissionDeniedError` | angemeldet, aber nicht erlaubt (403) |
 | `NotFoundError` | kein solcher Knoten, keine solche Sammlung, keine solche Gruppe (404) |
-| `ValidationError` | die Anfrage ist falsch: vor dem Senden erkannt (unbekannter Kurzname, leerer Dateiname, leere Suche oder leerer Vorschlag) **oder** vom Server mit 400 oder 422 abgelehnt — ein Kriterium, das dieser Metadatensatz nicht kennt, eine Template-Id ohne Konfiguration, ein Körper, den ein Dienst zurückweist. Zugleich ein `ValueError`: die Eingabeprüfungen warfen bis zum 23.09.2026 einen blanken, und ein dagegen geschriebenes `except ValueError` fängt sie weiter |
+| `ValidationError` | die Anfrage ist falsch: vor dem Senden erkannt (unbekannter Kurzname, leerer Dateiname, leere Suche oder leerer Vorschlag, eine Adresse, die httpx nicht lesen kann) **oder** vom Server mit 400 oder 422 abgelehnt — ein Kriterium, das dieser Metadatensatz nicht kennt, eine Template-Id ohne Konfiguration, ein Körper, den ein Dienst zurückweist. Zugleich ein `ValueError`: die Eingabeprüfungen warfen bis zum 23.09.2026 einen blanken, und ein dagegen geschriebenes `except ValueError` fängt sie weiter |
 | `ConflictError` | das Repository lehnt den Zustand ab (409) |
 | `ServerError` | die Instanz ist gescheitert (5xx) |
 | `RateLimitedError` | zu viele Anfragen (429) — `retry_after` trägt die vom Dienst genannten Sekunden |
@@ -1821,7 +1821,7 @@ sind.
 
 | Aufruf | Ergebnis |
 |---|---|
-| `normalize_repository_url(raw)` | `str` — Schrägstriche am Ende, Umgang mit `/edu-sharing` |
+| `normalize_repository_url(raw)` | `str` — Schrägstriche am Ende, Umgang mit `/edu-sharing`; verweigert einen Deep-Link, ein doppeltes `/edu-sharing`, Zugangsdaten, eine Query, ein anderes Schema als http(s) oder eines ohne sein `//`, und eine Adresse, die httpx nicht lesen kann |
 | `rest_base(repository_url)` | `str` — die REST-Wurzel darunter |
 | `path_segment(value)` | `str` — prozentkodiert einen Bezeichner, `/` eingeschlossen; weist `""`, `"."` und `".."` zurück |
 | `is_unroutable_host(host)` | `bool` — Loopback, Link-Local, private Bereiche |

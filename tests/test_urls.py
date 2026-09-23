@@ -15,7 +15,10 @@ from edusharing.urls import (
     path_segment,
     refuse_userinfo,
     rest_base,
+    service_base_url,
+    unparseable_reason,
     unsafe_url_reason,
+    unsafe_url_syntax,
 )
 
 HOST = "https://repositorium.example.test"
@@ -112,6 +115,85 @@ def test_ein_fremdes_oder_verschriebenes_schema_wird_abgewiesen(eingabe):
 def test_ein_port_ist_kein_schema():
     assert (normalize_repository_url("repositorium.example.test:8080")
             == "https://repositorium.example.test:8080/edu-sharing")
+
+
+# --- Was httpx nicht lesen kann (Audit COR-23-4) -----------------------------
+#
+# ``httpx.InvalidURL`` ist kein ``httpx.HTTPError``: eine Adresse, die hier
+# durchging und dort nicht, endete im ersten Aufruf jedes Clients an allen
+# ``except`` vorbei. Gemessen am 23.09.2026 (Probe A5).
+
+@pytest.mark.parametrize("eingabe", [
+    "https:repositorium.example.test",
+    "HTTP:repositorium.example.test:8080",
+])
+def test_ein_schema_ohne_doppelten_schraegstrich_wird_abgewiesen(eingabe):
+    """"https:host" wurde als blanker Host gelesen und zu
+    "https://https:host/edu-sharing" -- httpx: "Invalid port"."""
+    with pytest.raises(EduSharingError, match="'//' after its scheme"):
+        normalize_repository_url(eingabe)
+
+
+@pytest.mark.parametrize("eingabe", [
+    "repositorium.example.test:abc",
+    f"{HOST}:abc",
+    f"{HOST}:99999",
+    f"{HOST}\x7f",
+    "https://[::1",
+])
+def test_eine_adresse_die_httpx_nicht_liest_wird_abgewiesen(eingabe):
+    """Ein Port ausserhalb von 0-65535 liest httpx noch -- er scheitert erst
+    beim Verbinden, nach allen Wiederholungen. Nie brauchbar, also gleich."""
+    with pytest.raises(EduSharingError, match="cannot be used"):
+        normalize_repository_url(eingabe)
+
+
+@pytest.mark.parametrize("eingabe", [
+    "https://gw.example.test:abc",
+    "https://gw.example.test:99999",
+    "https://gw.example.test\x01",
+    "https://[::1",
+])
+def test_eine_dienstadresse_die_httpx_nicht_liest_wird_abgewiesen(eingabe):
+    """Dieselbe Regel fuer die vier Nachbardienste. Fuer "https://[::1" warf
+    ``urlsplit`` dort sogar ein nacktes ``ValueError``."""
+    with pytest.raises(EduSharingError, match="cannot be used"):
+        service_base_url(eingabe, service="the service", instead="-",
+                         example="https://gw.example.test")
+
+
+@pytest.mark.parametrize(("url", "grund"), [
+    ("https://repositorium.example.test/edu-sharing", None),
+    ("https://repositorium.example.test:0/x", None),
+    ("https://repositorium.example.test:abc/x", "port"),
+    ("https://repositorium.example.test:65536/x", "port"),
+    ("https://repositorium.example.test/x\x01", "character"),
+])
+def test_unparseable_reason_nennt_den_grund_oder_nichts(url, grund):
+    reason = unparseable_reason(url)
+    assert (reason is None) if grund is None else (grund in reason.lower())
+
+
+#: U+FF03 FULLWIDTH NUMBER SIGN im Benutzernamen: httpx nimmt ihn an,
+#: ``urlsplit`` nicht.
+MIT_VOLLBREITE = f"https://us{chr(0xFF03)}er:geheim@host.example.test/x"
+
+
+def test_unparseable_reason_wiederholt_keine_zugangsdaten():
+    """Gemessen am 23.09.2026: ``urlsplit`` verweigert die Adresse, und seine
+    Meldung wiederholt die ganze Autoritaet samt Passwort."""
+    reason = unparseable_reason(MIT_VOLLBREITE)
+    assert reason is not None
+    assert "geheim" not in reason
+
+
+@pytest.mark.parametrize("pruefung", [unsafe_url_reason, unsafe_url_syntax])
+def test_auch_die_sicherheitspruefung_wiederholt_keine_zugangsdaten(pruefung):
+    """Dieselbe Meldung von ``urlsplit``, dort als "unparseable (...)" --
+    bevor die Regel gegen Zugangsdaten in der Adresse greifen konnte."""
+    reason = pruefung(MIT_VOLLBREITE)
+    assert reason is not None
+    assert "geheim" not in reason
 
 
 def test_refuse_userinfo_liest_die_autoritaet_nicht_urlsplit():

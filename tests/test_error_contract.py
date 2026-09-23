@@ -157,6 +157,36 @@ async def test_a_status_means_the_same_in_every_client(name, status, expected):
         await call(client)
 
 
+# --- An address httpx cannot read ------------------------------------------------
+
+@pytest.mark.parametrize("path", [
+    "/node\x01",                                        # a path handed to repo.raw
+    f"{BASE}/edu-sharing/rest/node\x01",                # the repository, absolute
+    "https://elsewhere.example.test/file?sig=s3cret\x01",  # a stored downloadUrl
+    "https://elsewhere.example.test:abc/file",
+    "https://elsewhere.example.test:99999/file",
+])
+async def test_an_address_httpx_cannot_read_is_refused_before_sending(path):
+    """Audit COR-23-4 (2026-09-23): ``httpx.InvalidURL`` is not an
+    ``httpx.HTTPError``, so it went past the request loop's ``except`` -- and
+    for a foreign address ``_for_log`` raised it before that, from a log line.
+    The message names neither the path nor the query: a signed link keeps its
+    secret there, which is why ``_for_log`` shows only a foreign host."""
+    sent = []
+
+    def handler(request):
+        sent.append(request)
+        return httpx.Response(200)
+
+    transport = Transport(f"{BASE}/edu-sharing", max_retries=0,
+                          client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    with pytest.raises(ValidationError) as info:
+        await transport.request("GET", path)
+    assert sent == []
+    assert "s3cret" not in str(info.value)
+    assert info.value.url is not None
+
+
 # --- JSON nested deeper than the interpreter recurses ----------------------------
 
 #: 200 kB -- far below every size limit this library sets.

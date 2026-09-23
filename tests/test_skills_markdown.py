@@ -162,6 +162,41 @@ def test_setext_und_zaeune_sind_keine_ueberschriften():
     assert [s.title for s in parse_sections(text)] == ["Echt"]
 
 
+@pytest.mark.parametrize(("zeile", "erwartet"), [
+    ("# Titel", [(1, "Titel")]),
+    ("## Titel  ", [(2, "Titel")]),
+    ("###\tTab", [(3, "Tab")]),
+    ("#", [(1, "")]),
+    ("#   ", [(1, "")]),
+    ("# C#", [(1, "C#")]),
+    ("## Titel ##", [(2, "Titel")]),
+    ("#kein", []),
+    ("    # eingerueckt", []),
+    ("   # drei", [(1, "drei")]),
+    ("####### sieben", []),
+    ("# a  b  ", [(1, "a  b")]),
+])
+def test_ueberschriften_an_ihren_raendern(zeile, erwartet):
+    """Gepinnt vor dem Umbau des Musters (Audit SEC-23-1): was eine Ueberschrift
+    ist und welcher Titel herauskommt, darf sich dabei nicht aendern -- nur,
+    wie lange die Antwort dauert."""
+    assert [(s.level, s.title) for s in parse_sections(zeile + "\n")] == erwartet
+
+
+def test_eine_ueberschrift_mit_langem_leerraum_bleibt_linear():
+    """Audit SEC-23-1 (23.09.2026): das Muster las den Leerraum hinter dem Titel
+    an jeder Stelle eines Laufs neu -- quadratisch in seiner Laenge. Gemessen:
+    16 000 Leerzeichen zwischen zwei Zeichen einer Ueberschrift 1,4 s, eine
+    1-MiB-Zeile hochgerechnet anderthalb Stunden blockierte Ereignisschleife.
+    Eine Registry kommt aus dem Repositorium, also von anderen."""
+    import time
+    titel = "x" + " " * 60_000 + "y"
+    start = time.perf_counter()
+    abschnitte = parse_sections(f"# {titel}\n")
+    assert time.perf_counter() - start < 3.0
+    assert [(s.level, s.title) for s in abschnitte] == [(1, titel)]
+
+
 # --- Kontexte --------------------------------------------------------------
 
 def test_ein_zweiter_oeffner_im_offenen_block_ist_text():

@@ -34,7 +34,13 @@ _APP_SEGMENT = "/edu-sharing"
 # "user" in "user:pw@host" and only a path in the typo "https:/user:pw@host".
 _AUTHORITY = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:)?/*([^/?#]*)")
 _SCHEME_WITH_SLASH = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:/")
-_USERINFO = re.compile(r"[^/\s@]+@")
+# A match can only begin where a run begins -- after "/", whitespace, "@" or at
+# the start -- so the lookbehind changes no result. It changes the cost: without
+# it the search restarted inside a long run and re-read the rest of it each
+# time, measured 2026-09-23 at 1.2 s for 16 000 characters, and check_url masks
+# exactly the addresses that came from someone else's record (the class of
+# audit SEC-23-1).
+_USERINFO = re.compile(r"(?<![^/\s@])[^/\s@]+@")
 
 
 def mask_userinfo(url: str) -> str:

@@ -31,6 +31,20 @@ and in [`docs/audits/`](docs/audits/).
   `ruff` went 0.16.4 to 0.16.8 and four pinned GitHub Actions moved with it;
   the suite is 2 764 passed either way.
 
+### Security
+
+- **A registry file can no longer stop a service.** The heading pattern of the
+  Markdown reader re-read a run of blanks at every position inside it, so the
+  time grew with the square of the run: 16 000 spaces in one heading took
+  1.4 s, a 1 MiB line would have held the event loop for an hour and a half,
+  and a registry is downloaded from the repository at up to 8 MiB. The rest of
+  the line is now taken whole and stripped afterwards -- the same headings,
+  the same titles, 0.0003 s for a 1 MiB line (audit SEC-23-1).
+- **`mask_userinfo` was quadratic the same way**, found while closing that
+  class: 1.2 s for a 16 000-character address without an `@`, and
+  `agent.check_url` masks every address it refuses. A match can only start
+  where a run starts, and the pattern now says so.
+
 ## [0.3.5] — 2026-09-21
 
 **What was proven, and what was not.** `ruff check .` clean, `mypy` clean over

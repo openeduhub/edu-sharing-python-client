@@ -73,7 +73,13 @@ _LINK_TARGET = re.compile(r"[^)\s]+")
 #: A backslash before ASCII punctuation means that character literally.
 _ESCAPED = re.compile(r"\\([!-/:-@\[-`{-~])")
 #: ``#`` to ``######``, at most three of indent, and a space after the hashes.
-_HEADING = re.compile(r"^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$")
+#: The rest of the line is taken whole; ``parse_sections`` strips it. Stopping
+#: before trailing blanks with ``(.*?)[ \t]*$`` re-read the blank run at every
+#: position inside it -- measured 2026-09-23, 16 000 spaces in one heading took
+#: 1.4 s, and a 1 MiB line would have held the event loop for an hour and a
+#: half (audit SEC-23-1). A possessive ``[ \t]*+`` does not cure that: the run
+#: is re-scanned, not backtracked into (0.31 s at 16 000, measured).
+_HEADING = re.compile(r"^ {0,3}(#{1,6})(?:[ \t]+(.*))?$")
 #: A fence is three **or more** backticks or tildes, and the length is
 #: part of it: a shorter run does not close a longer one. Reading only
 #: three let the first inner three-backtick line close a four-backtick

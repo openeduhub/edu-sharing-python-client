@@ -133,6 +133,20 @@ def test_mask_userinfo_verbirgt_nur_die_zugangsdaten():
     assert mask_userinfo("https://host.test/x") == "https://host.test/x"
 
 
+def test_mask_userinfo_bleibt_bei_langen_adressen_linear():
+    """Gefunden beim Schliessen von Audit SEC-23-1, dieselbe Klasse: das Muster
+    begann in einem langen Lauf ohne ``@`` an jeder Stelle neu und las den Rest
+    des Laufs jedes Mal wieder. Gemessen am 23.09.2026: 16 000 Zeichen 1,2 s --
+    und ``agent.check_url`` maskiert so jede Adresse, die es ablehnt, also
+    gerade die aus fremden Datensaetzen."""
+    import time
+    lang = "ftp://" + "a" * 60_000
+    start = time.perf_counter()
+    assert mask_userinfo(lang) == lang
+    assert mask_userinfo(lang + "@host") == "ftp://***@host"
+    assert time.perf_counter() - start < 3.0
+
+
 def test_zugangsdaten_werden_vor_dem_deep_link_geprueft():
     """Sonst wiederholte die Deep-Link-Meldung die Adresse samt Passwort."""
     with pytest.raises(EduSharingError) as fehler:

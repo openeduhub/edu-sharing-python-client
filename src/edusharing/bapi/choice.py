@@ -21,12 +21,13 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from ..errors import EduSharingError, RateLimitedError, ValidationError
 from .models import Model, is_rankable, rank_among, rank_models
-from .router import answered_by
+from .router import ROUTER, answered_by, provider_and_model
 
 if TYPE_CHECKING:
     from .client import BildungsAPI
@@ -85,6 +86,32 @@ async def resolve_group(
     return api.virtual_models[model]
 
 
+async def _offered_at_router(api: BildungsAPI, group: Sequence[str]) -> list[Model]:
+    """What a group at the router may name: its routes, and every
+    ``provider/model`` that provider offers.
+
+    The router lists routes only, never the pattern, so ``openai/gpt-5.6-luna``
+    is looked up in OpenAI's own list -- the rule of ``rank_among``, that
+    every name has to exist, holds here too. A route named like the pattern is
+    the route, as at the gateway.
+
+    A provider's load figure is dropped: one provider's demand says nothing
+    against another's that reports none, so at the router the order written is
+    the order tried.
+    """
+    offered = await api.models(ROUTER)
+    routes = {m.id for m in offered}
+    for name in group:
+        parts = provider_and_model(name)
+        if name in routes or parts is None:
+            continue
+        provider, model = parts
+        entry = next((m for m in await api.models(provider) if m.id == model), None)
+        if entry is not None:
+            offered.append(replace(entry, id=name, demand=None))
+    return offered
+
+
 async def answer_from_candidates(
     api: BildungsAPI,
     model: str | Sequence[str] | None,
@@ -114,7 +141,9 @@ async def answer_from_candidates(
     group = await resolve_group(api, model, which)
 
     if group is not None:
-        candidates = rank_among(await api.models(which), group)
+        offered = (await _offered_at_router(api, group) if which == ROUTER
+                   else await api.models(which))
+        candidates = rank_among(offered, group)
     elif isinstance(model, str) and model:
         # One named model asks no list. Measured: chat() with an id makes
         # exactly one request, and a caller who names a model is not

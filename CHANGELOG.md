@@ -95,6 +95,21 @@ and in [`docs/audits/`](docs/audits/).
   `ignore-caching=true`, which neither reads the cache nor stores the answer.
 - `docs/examples/27_bapi_router.py`: what each route reaches, the body it
   gets, and the cache.
+- **A group at the router may span providers.** `model=["openai/gpt-5.6-luna",
+  "academiccloud/gemma-4-31b-it"]` with `provider="router"` tries the members
+  in the order written and gives each the body of its own family -- what a
+  route cannot do, because the router hands every deployment one body. Every
+  name is checked first: a route against the router's list, `provider/model`
+  against its provider's own. A group at the router used to take route names
+  only and refused the pattern with "Not offered here".
+- **Does the router replace `virtual_models`? No -- the two complement each
+  other.** A route is kept on the gateway and changed in one place for every
+  application, but it bundles models of one kind and ignores load; a virtual
+  model gives each model its own body, can follow the AcademicCloud's load and
+  needs no rights. The reference compares them under *A route or a virtual
+  model?*, and `docs/examples/28_bapi_bundling.py` shows a group across two
+  providers beside the same two models as a route -- refused -- and a route
+  of one kind that answers.
 
 ### Fixed
 
@@ -178,6 +193,11 @@ and in [`docs/audits/`](docs/audits/).
 - **A b-api error without a body says so.** The router answers an unknown
   route id with a 404 that carries no body at all, and the message ended in
   a colon; it reads "(the gateway sent no message)" now.
+- **`models(provider=...)` keeps every provider's list**, not only the
+  client's own, for `models_cache_seconds`. A group at the router checks each
+  `provider/model` against its provider's list, and without this every such
+  call fetched OpenAI's 141 models first. That a kept list is fetched again
+  once it is older than allowed now has a test of its own.
 - **Every input check raises `ValidationError`, and `ValidationError` is
   also a `ValueError`.** Nineteen checks across twelve modules -- an empty
   comment, query, proposal or preview image, a rating of zero, a grant of
@@ -291,6 +311,11 @@ and in [`docs/audits/`](docs/audits/).
   flag -- and each body rule was seen to fail with the rule broken.
   `tests/test_live_bapi_router.py` runs against the gateway with a throwaway
   route of its own and `gpt-5.6-luna` only, and deletes the route again.
+- **Example 28 runs offline too.** `tests/test_bapi_bundling_example.py` takes
+  it through a gateway in memory along the paths a live run rarely takes --
+  the first model failing, a key without the right to create routes, a
+  request failing after the route exists (it is deleted all the same) -- and
+  each check was seen to fail with the example broken on purpose.
 
 ## [0.3.5] — 2026-09-21
 

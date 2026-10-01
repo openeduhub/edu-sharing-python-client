@@ -1136,7 +1136,7 @@ Template-Modus* weiter unten — eine eigene Klasse, von der diese nicht abhäng
 | `BildungsAPI.from_env()` | braucht `B_API_BASE_URL` **und** `B_API_KEY` |
 | `BildungsAPI(base_url=…, api_key=…, gateway_cache=False)` | ein Client, der am Antwort-Cache des Gateways vorbei fragt — siehe *Der Antwort-Cache des Gateways* unten |
 | `BildungsAPI(base_url=…, api_key=…, provider="router")` | ein Client, der über den Router fragt — siehe *Der Router* unten |
-| `api.models(provider=…)` | `list[Model]` — kurz gemerkt |
+| `api.models(provider=…)` | `list[Model]` — die Liste jedes Providers kurz gemerkt |
 | `Model` | `can_chat`, `demand`, `id`, `input`, `is_ready`, `name`, `output`, `owned_by`, `shutdown_date`, `status` |
 | `api.chat(prompt, model=…, system=…, max_tokens=…, temperature=…, thinking=…, provider=…)` | `str` — `prompt` ist eine Zeichenkette oder eine fertige Nachrichtenliste (`[{"role": …, "content": …}]`), so geht ein Gespräch über mehrere Runden hinein; `temperature` steht auf `0.0`, und die Familien, die eine abweichende ablehnen, bekommen sie nie |
 | `api.chat(…, reasoning_effort="high", verbosity="low")` | `str` — siehe unten |
@@ -1410,6 +1410,10 @@ sieht — `deepseek-v4-flash` wurde binnen neun Tagen zu
 **Bei OpenAI gilt Ihre Reihenfolge.** Dort wird keine Auslastung gemeldet, ein
 Verbund ist dann eine Ausweichkette, kein Lastausgleich.
 
+**Über Provider hinweg, mit dem Router.** Bei `provider="router"` darf ein
+Verbund `provider/modell` mehrerer Provider nennen, jedes mit dem Rumpf seiner
+Familie — siehe *Route oder virtuelles Modell?* unter *Der Router*.
+
 **Ein Verbundname, den es auch als Modell gibt, wird abgelehnt.** Sonst hinge
 es von der Reihenfolge des Nachschlagens ab, welches der beiden geantwortet
 hat.
@@ -1551,10 +1555,9 @@ geantwortet hat — keine Kopfzeile sagt es —, also ist `last_model`
 `"gpt-5.6-luna"`, nicht der Name der Route. Anderswo bleibt es die gesendete
 ID.
 
-**Eine Route ist kein virtuelles Modell.** Der Router geht nach Stufe und
-Gewicht, nicht nach Auslastung; das `demand` der AcademicCloud nutzt er nicht.
-Dafür bleibt `virtual_models`, und das geht an jedem Gateway. Eine Gruppe aus
-Routen ist dort eine Ausweichkette, wie bei OpenAI.
+**Eine Route ist kein virtuelles Modell.** Die beiden bündeln Modelle an
+verschiedenen Stellen und ersetzen einander nicht — siehe *Route oder
+virtuelles Modell?* weiter unten.
 
 Gemessen am 2026-10-01 gegen Staging, über das Obige hinaus:
 
@@ -1574,6 +1577,52 @@ Gemessen am 2026-10-01 gegen Staging, über das Obige hinaus:
 * `create_route` und `delete_route` werden nach einem Fehlschlag nicht
   wiederholt, der ihre Arbeit schon getan haben kann; `replace_route` schon,
   wie jede idempotente Anfrage.
+
+#### Route oder virtuelles Modell?
+
+Beide stellen mehrere Modelle hinter einen Namen. Wo gewählt wird, entscheidet,
+was jedes kann:
+
+| | Virtuelles Modell (`virtual_models`, `model=[…]`) | Route auf dem Gateway |
+|---|---|---|
+| Liegt | in der Anwendung | auf dem Gateway, für alle Schlüssel eines Kontos oder für alle |
+| Wer wählt | diese Bibliothek, je Aufruf | das Gateway, je Anfrage |
+| Reihenfolge | gemessene Auslastung bei `provider="academiccloud"`; sonst wie geschrieben | Stufe, dann Gewicht; die Auslastung zählt nicht |
+| Anfragerumpf | **jedes Modell bekommt seinen eigenen** | **einer für alle**: GPT-5 und ältere Modelle passen nicht in eine Route |
+| Über Provider hinweg | am Router: `model=["openai/…", "academiccloud/…"]` | ja |
+| Ändern ohne neue Version | nein | ja: jede Anwendung, die den Namen schickt, zieht mit |
+| Braucht | nichts | eine Route, von einem Admin oder mit dem Kontorecht `LLM_ROUTE_MANAGE` |
+| Geht an | jedem Gateway | dem Router der b-api |
+
+Also eine Route, wo viele Anwendungen einen Namen teilen, der an einer Stelle
+geändert wird, für Modelle einer Art. Ein virtuelles Modell, wo die Modelle
+verschiedener Art sind, wo die Auslastung der AcademicCloud entscheiden soll,
+und überall, wo niemand eine Route anlegen kann.
+
+Am Router lassen sich beide verbinden: eine Gruppe darf dort Routen und
+`provider/modell` nennen, über Provider hinweg.
+
+```python
+# async: BildungsAPI hat keine blockierende Fassade
+api = BildungsAPI.from_env(provider="router")
+await api.chat("Fasse zusammen: …",
+               model=["openai/gpt-5.6-luna", "academiccloud/gemma-4-31b-it"])
+api.last_model       # "gpt-5.6-luna" -- oder gemma, wenn luna nicht antwortete
+```
+
+* **Jeder Name muss existieren**: eine Route in der Liste des Routers,
+  `provider/modell` in der eigenen Liste seines Providers, geprüft, bevor
+  etwas hinausgeht. Die Liste jedes Providers wird `models_cache_seconds` lang
+  gemerkt.
+* **Die geschriebene Reihenfolge ist die Reihenfolge der Versuche.** Die
+  Auslastung eines Providers sagt nichts gegen einen anderen, der keine meldet;
+  wer nach Auslastung wählen will, bleibt bei `provider="academiccloud"`.
+* **Jedes Mitglied bekommt den Rumpf seiner Familie** — `max_completion_tokens`
+  für luna, `max_tokens` für gemma —, und genau das kann eine Route nicht.
+
+`docs/examples/28_bapi_bundling.py` zeigt beides: die Gruppe über zwei
+Provider, dann dieselben zwei Modelle als Route — vor dem Senden abgelehnt —
+und eine Route aus einer Art, die antwortet.
 
 #### Der Antwort-Cache des Gateways
 

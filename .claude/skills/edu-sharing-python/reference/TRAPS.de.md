@@ -538,6 +538,12 @@ Route, oder das Modell hinter `provider/modell`. Gemessen auf Staging
   für Abwechslung bei höherer `temperature` stellt, bekommt die erste Antwort.
   `BildungsAPI(gateway_cache=False)` fragt am Cache vorbei, und
   `replace_route(route, clear_cache=True)` leert ihn für eine Route.
+- **Eine Route ersetzt kein virtuelles Modell.** Für Modelle verschiedener Art
+  — luna und gemma etwa — die Gruppe im Client lassen: am Router mischt
+  `model=["openai/gpt-5.6-luna", "academiccloud/gemma-4-31b-it"]` die Provider
+  und gibt jedem Mitglied seinen eigenen Rumpf. Jeder Name wird vorher gegen
+  die Liste seines Providers geprüft; die geschriebene Reihenfolge ist die
+  Reihenfolge der Versuche.
 
 ```python
 # async: BildungsAPI hat keine blockierende Fassade

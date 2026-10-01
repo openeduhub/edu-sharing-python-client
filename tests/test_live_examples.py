@@ -64,6 +64,9 @@ SCHREIBEND = frozenset({
     "16_editorial.py",
     "17_flow_belonging.py",
     "23_ai_suggestions.py",
+    # Legt keinen Ordner an, sondern eine Route auf dem Gateway -- und loescht
+    # sie im finally wieder. Braucht dafuer B_API_KEY und LLM_ROUTE_MANAGE.
+    "28_bapi_bundling.py",
 })
 
 #: Grosszuegig, damit ein langsames Netz kein Fehlschlag ist -- ein Zuschlagen

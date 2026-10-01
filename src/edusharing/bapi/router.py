@@ -199,9 +199,19 @@ def upstream_of(name: str, routes: Sequence[Route]) -> tuple[str, ...] | None:
         for route in routes:
             if route.name == name and route.enabled and (route.account_id is not None) == own:
                 return route.upstream or None
+    parts = provider_and_model(name)
+    return (parts[1],) if parts else None
+
+
+def provider_and_model(name: str) -> tuple[str, str] | None:
+    """The two halves of the pattern ``provider/model``, or ``None``.
+
+    Split at the first slash, as the gateway does: ``academiccloud/meta-llama/
+    Llama-3`` is the model ``meta-llama/Llama-3`` at the AcademicCloud.
+    """
     provider, slash, model = name.partition("/")
     if slash and provider and model:
-        return (model,)
+        return provider, model
     return None
 
 

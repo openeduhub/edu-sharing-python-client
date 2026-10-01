@@ -1107,7 +1107,7 @@ its own, which this one does not depend on.
 | `BildungsAPI.from_env()` | needs `B_API_BASE_URL` **and** `B_API_KEY` |
 | `BildungsAPI(base_url=…, api_key=…, gateway_cache=False)` | a client that asks past the gateway's answer cache — see *The gateway's answer cache* below |
 | `BildungsAPI(base_url=…, api_key=…, provider="router")` | a client that asks through the router — see *The router* below |
-| `api.models(provider=…)` | `list[Model]` — cached briefly |
+| `api.models(provider=…)` | `list[Model]` — each provider's list cached briefly |
 | `Model` | `can_chat`, `demand`, `id`, `input`, `is_ready`, `name`, `output`, `owned_by`, `shutdown_date`, `status` |
 | `api.chat(prompt, model=…, system=…, max_tokens=…, temperature=…, thinking=…, provider=…)` | `str` — `prompt` is a string or a ready message list (`[{"role": …, "content": …}]`), which is how a conversation of several turns goes in; `temperature` defaults to `0.0`, and the families that refuse a deviating one never get it |
 | `api.chat(…, reasoning_effort="high", verbosity="low")` | `str` — see below |
@@ -1367,6 +1367,10 @@ renamed would keep working and keep getting slower, with nothing to see —
 **At OpenAI the order you wrote stands.** No load is reported there at all, so
 a group is a fallback chain rather than a load balancer.
 
+**Across providers, through the router.** At `provider="router"` a group may
+name `provider/model` from several providers, each with the body of its own
+family — see *A route or a virtual model?* under *The router*.
+
 **A group name that is also a real model id is refused.** Which of the two
 answered would otherwise depend on lookup order.
 
@@ -1503,10 +1507,8 @@ answer's `model` field is the only word on which deployment answered — no
 header says it — so `last_model` is `"gpt-5.6-luna"`, not the route's name.
 Elsewhere it stays the id that was sent.
 
-**A route is not a virtual model.** The router goes by tier and weight, not by
-load; the AcademicCloud's `demand` is not used. `virtual_models` stays for
-that, and it works at any gateway. A group of routes there is a fallback chain,
-as at OpenAI.
+**A route is not a virtual model.** The two bundle models in different places
+and do not replace each other — see *A route or a virtual model?* below.
 
 Measured 2026-10-01 against staging, beyond the above:
 
@@ -1523,6 +1525,51 @@ Measured 2026-10-01 against staging, beyond the above:
   does not repeat.
 * `create_route` and `delete_route` are not repeated after a failure that may
   have done their work; `replace_route` is, like any idempotent request.
+
+#### A route or a virtual model?
+
+Both put several models behind one name. Where the choice is made decides what
+each can do:
+
+| | Virtual model (`virtual_models`, `model=[…]`) | Route on the gateway |
+|---|---|---|
+| Kept | in the application | on the gateway, for every key of an account or for all |
+| Who picks | this library, per call | the gateway, per request |
+| Order | measured load at `provider="academiccloud"`; elsewhere the order written | tier, then weight; load is not used |
+| Request body | **each model gets its own** | **one for all**: GPT-5 and older models cannot share a route |
+| Across providers | at the router: `model=["openai/…", "academiccloud/…"]` | yes |
+| Changed without a release | no | yes: every application that sends the name follows |
+| Needs | nothing | a route, from an admin or with the account right `LLM_ROUTE_MANAGE` |
+| Works at | any gateway | the b-api's router |
+
+So a route where many applications share one name that is changed in one
+place, for models of one kind. A virtual model where the models differ in kind,
+where the AcademicCloud's load should decide, and wherever nobody can create a
+route.
+
+At the router the two combine: a group there may name routes and
+`provider/model`, across providers.
+
+```python
+# async: BildungsAPI has no blocking facade
+api = BildungsAPI.from_env(provider="router")
+await api.chat("Fasse zusammen: …",
+               model=["openai/gpt-5.6-luna", "academiccloud/gemma-4-31b-it"])
+api.last_model       # "gpt-5.6-luna" -- or gemma, when luna did not answer
+```
+
+* **Every name has to exist**: a route in the router's list, `provider/model`
+  in its provider's own list, checked before anything is sent. Each provider's
+  list is kept for `models_cache_seconds`.
+* **The order written is the order tried.** One provider's load says nothing
+  against another's that reports none; for a choice by load, stay at
+  `provider="academiccloud"`.
+* **Each member gets the body of its own family** — `max_completion_tokens`
+  for luna, `max_tokens` for gemma — which is what a route cannot do.
+
+`docs/examples/28_bapi_bundling.py` shows both: the group across two
+providers, then the same two models as a route — refused before anything is
+sent — and a route of one kind that answers.
 
 #### The gateway's answer cache
 

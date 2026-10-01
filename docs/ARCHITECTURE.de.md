@@ -718,7 +718,7 @@ Bestand wurde nach jedem Lauf gegen seinen Ausgangszustand verglichen.
 | `bapi/models.py` | Welches Modell: Wahl, Auslastung, Abkündigung — reine Funktionen |
 | `bapi/body.py` | Wie der Anfragerumpf aussehen muss — reine Funktionen |
 | `bapi/_response.py` | Verschachtelte Antwortprüfung für Proxy- und Template-Parser; explizite Entscheidungen und vollständige Embedding-Indizes |
-| `bapi/choice.py` | Welches Modell antwortet: eine Gruppe oder eine ausdrückliche Liste, die Rangfolge, wenn der Aufrufer die Wahl offen ließ, die Obergrenze beim Raten und der Wechsel zum nächsten Kandidaten. `chat` und `respond` teilen sie |
+| `bapi/choice.py` | Welches Modell antwortet: eine Gruppe oder eine ausdrückliche Liste — am Router Routen und `provider/modell` über Provider hinweg —, die Rangfolge, wenn der Aufrufer die Wahl offen ließ, die Obergrenze beim Raten und der Wechsel zum nächsten Kandidaten. `chat` und `respond` teilen sie |
 | `bapi/client.py` | HTTP zur b-api, Wiederholung, Nebenläufigkeit, Cache mit Verfallszeit |
 | `bapi/passthrough.py` | Durchgereichte Routen — Einbettungen, Moderation, Bilder, `call` für JSON und `call_bytes` für binäre Antworten |
 | `bapi/router.py` | Der Router des Gateways: `Route` und `Deployment`, welche Modelle ein Name erreicht, in der Reihenfolge des Gateways, wer geantwortet hat, und die Anfragen, die die Routen eines Kontos verwalten |

@@ -953,11 +953,26 @@ Provider, nicht nur beim Router. Dieselbe Frage zweimal kommt mit derselben
 Antwort und derselben id zurück, und nichts kennzeichnet das.
 `BildungsAPI(gateway_cache=False)` fragt am Cache vorbei.
 
-Eine Route ist kein virtuelles Modell: der Router geht nach Stufe und Gewicht,
-nicht nach Auslastung. Dafür bleibt `virtual_models`. Die Einzelheiten stehen
-in [docs/REFERENCE.de.md](docs/REFERENCE.de.md), unter *Der Router*.
+**Eine Route ersetzt kein virtuelles Modell.** Eine Route schickt allen ihren
+Modellen denselben Rumpf, bündelt also nur Modelle einer Art — dafür wird sie
+an einer Stelle geändert, für jede Anwendung, die ihren Namen nutzt. Ein
+virtuelles Modell (`virtual_models`, `model=[…]`) gibt jedem Modell seinen
+eigenen Rumpf, kann der Auslastung der AcademicCloud folgen und braucht keine
+Rechte. Am Router lassen sich beide verbinden: eine Gruppe darf dort Provider
+mischen.
 
-Zum Ausprobieren: `python docs/examples/27_bapi_router.py`
+```python
+# async: BildungsAPI hat keine blockierende Fassade
+await llm.chat("Fasse zusammen: …",
+               model=["openai/gpt-5.6-luna", "academiccloud/gemma-4-31b-it"])
+```
+
+Die Einzelheiten, mit einer Tabelle, was wann passt, stehen in
+[docs/REFERENCE.de.md](docs/REFERENCE.de.md), unter *Der Router*.
+
+Zum Ausprobieren: `python docs/examples/27_bapi_router.py`, und
+`28_bapi_bundling.py` für Gruppe und Route nebeneinander — es legt eine eigene
+Route an und löscht sie wieder.
 
 ### Der Template-Modus — Prompts, die auf dem Server liegen
 
@@ -1699,6 +1714,7 @@ wird:
 | [`21_skills.py`](docs/examples/21_skills.py) | welche Skills eine Sammlung freigibt, und was einer davon sagt |
 | [`22_bapi_templates.py`](docs/examples/22_bapi_templates.py) | ein Prompt, der auf dem Server liegt, gefüllt aus einer Sammlung — und was freier Text mit ihm macht |
 | [`27_bapi_router.py`](docs/examples/27_bapi_router.py) | Routen auf dem Gateway: was ein Name erreicht, welchen Rumpf er bekommt, und der Antwort-Cache |
+| [`28_bapi_bundling.py`](docs/examples/28_bapi_bundling.py) | Modelle bündeln: eine Gruppe über zwei Provider und dasselbe als Route — warum die eine abgelehnt wird, und eine aus einer Art, die antwortet |
 | [`23_ai_suggestions.py`](docs/examples/23_ai_suggestions.py) | das Modell schlägt Schlagworte vor, ein Programm übernimmt das beste — und liest es zurück |
 | [`24_generic_metadata.py`](docs/examples/24_generic_metadata.py) | MDS, eigenes Profil, Vokabulare und Snapshots |
 | [`25_prepare_context.py`](docs/examples/25_prepare_context.py) | Materialentwurf und Sammlungskontext, rein lesend |

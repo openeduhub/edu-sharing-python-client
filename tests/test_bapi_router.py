@@ -660,6 +660,159 @@ async def test_a_group_of_routes_is_tried_in_the_order_written():
     assert "max_completion_tokens" in sent[0] and "max_tokens" in sent[1]
 
 
+# --- A group at the router: routes and provider/model, across providers -------
+
+ROUTER_MODELS = {"object": "list", "data": [
+    {"id": "fast", "object": "model", "owned_by": "router", "created": 0},
+    {"id": "openai/special", "object": "model", "owned_by": "router", "created": 0},
+]}
+OPENAI_MODELS = {"object": "list", "data": [
+    {"id": "gpt-5.6-luna", "object": "model", "owned_by": "openai"}]}
+#: Demand 0: ranked by load, it would go first.
+ACADEMIC_MODELS = {"data": [
+    {"id": "gemma-4-31b-it", "status": "ready", "demand": 0,
+     "input": ["text"], "output": ["text"]}]}
+LISTS = {
+    "/api/v1/llm/router/models": ROUTER_MODELS,
+    "/api/v1/llm/openai/models": OPENAI_MODELS,
+    "/api/v1/llm/academiccloud/models": ACADEMIC_MODELS,
+}
+SPREAD = ["openai/gpt-5.6-luna", "academiccloud/gemma-4-31b-it"]
+
+
+def _providers(answer=lambda body: httpx.Response(200, json=ANSWER)):
+    """Lists for the router and two providers; ``answer`` takes each request body."""
+    def handler(request):
+        if request.url.path == ROUTES:
+            return httpx.Response(200, json=[OWN, SHARED])
+        if request.url.path in LISTS:
+            return httpx.Response(200, json=LISTS[request.url.path])
+        return answer(_sent(request))
+    return handler
+
+
+def _paths(calls, method="GET"):
+    return [c.url.path for c in calls if c.method == method]
+
+
+async def test_a_group_at_the_router_may_span_providers():
+    """Each member gets the body its own family takes -- what one route
+    cannot do, because the router hands every deployment the same body."""
+    calls = []
+
+    def answer(body):
+        if body["model"] == "openai/gpt-5.6-luna":
+            return httpx.Response(503, json={"error": "Model pricing unavailable for "
+                                                      "'gpt-5.6-luna' - cannot enforce cost quota"})
+        return httpx.Response(200, json={**ANSWER, "model": "gemma-4-31b-it"})
+
+    async with _client(_providers(answer), calls, provider="router") as api:
+        await api.chat("hi", model=SPREAD)
+
+        assert api.last_model == "gemma-4-31b-it"
+
+    sent = [_sent(c) for c in calls if c.method == "POST"]
+    assert [s["model"] for s in sent] == SPREAD
+    assert "max_completion_tokens" in sent[0] and "temperature" not in sent[0]
+    assert "max_tokens" in sent[1] and "temperature" in sent[1]
+
+
+async def test_a_group_at_the_router_keeps_the_written_order():
+    """gemma reports demand 0 and luna nothing, yet luna -- written first --
+    answers: the load of one provider says nothing against another's."""
+    calls = []
+    async with _client(_providers(), calls, provider="router") as api:
+        await api.chat("hi", model=SPREAD)
+
+    assert [_sent(c)["model"] for c in calls if c.method == "POST"] == ["openai/gpt-5.6-luna"]
+
+
+async def test_a_name_its_provider_does_not_offer_is_refused_before_sending():
+    calls = []
+    async with _client(_providers(), calls, provider="router") as api:
+        with pytest.raises(ValidationError, match=r"Not offered here: openai/gibt-es-nicht\."):
+            await api.chat("hi", model=["openai/gpt-5.6-luna", "openai/gibt-es-nicht"])
+
+    assert _paths(calls, "POST") == []
+
+
+async def test_an_unknown_provider_in_a_group_is_refused_before_sending():
+    """Measured 2026-09-21: an unknown provider answers 400 "Provider ... not found"."""
+    calls = []
+
+    def handler(request):
+        if request.url.path == "/api/v1/llm/nosuch/models":
+            return httpx.Response(400, json={"message": "Provider nosuch not found"})
+        return _providers()(request)
+
+    async with _client(handler, calls, provider="router") as api:
+        with pytest.raises(ValidationError, match="Provider nosuch not found"):
+            await api.chat("hi", model=["nosuch/model", "openai/gpt-5.6-luna"])
+
+    assert _paths(calls, "POST") == []
+
+
+async def test_a_route_and_a_provider_model_in_one_group():
+    calls = []
+    async with _client(_providers(), calls, provider="router") as api:
+        await api.chat("hi", model=["fast", "academiccloud/gemma-4-31b-it"])
+
+    first = next(_sent(c) for c in calls if c.method == "POST")
+    assert first["model"] == "fast"
+    assert "max_completion_tokens" in first, "fast is a route of gpt-5.6-luna"
+
+
+async def test_a_route_named_like_the_pattern_is_the_route_in_a_group_too():
+    calls = []
+    async with _client(_providers(), calls, provider="router") as api:
+        await api.chat("hi", model=["openai/special"])
+
+    assert "/api/v1/llm/openai/models" not in _paths(calls)
+
+
+async def test_each_provider_list_is_kept_like_the_model_list():
+    """Without it, every call with ``openai/...`` in a group fetched OpenAI's
+    141 models first."""
+    calls = []
+    async with _client(_providers(), calls, provider="router", models_cache_seconds=30) as api:
+        await api.chat("hi", model=SPREAD)
+        await api.chat("hi again", model=SPREAD)
+
+    lists = _paths(calls)
+    assert lists.count("/api/v1/llm/openai/models") == 1
+    assert lists.count("/api/v1/llm/academiccloud/models") == 1
+
+
+async def test_the_list_of_another_provider_is_kept_too():
+    calls = []
+    async with _client(_providers(), calls, provider="academiccloud",
+                       models_cache_seconds=30) as api:
+        await api.models("openai")
+        listed = await api.models("openai")
+        listed.clear()
+        again = await api.models("openai")
+
+    assert _paths(calls) == ["/api/v1/llm/openai/models"]
+    assert [m.id for m in again] == ["gpt-5.6-luna"], "the caller's list is not the cache"
+
+
+async def test_a_kept_list_is_asked_again_once_it_is_older_than_allowed(monkeypatch):
+    """``demand`` moves by the minute; a list past ``models_cache_seconds``
+    would decide on stale figures."""
+    now = [1000.0]
+    monkeypatch.setattr("edusharing.bapi.client.time.monotonic", lambda: now[0])
+    calls = []
+    async with _client(_providers(), calls, provider="academiccloud",
+                       models_cache_seconds=30) as api:
+        await api.models("openai")
+        now[0] += 29.0
+        await api.models("openai")
+        now[0] += 2.0
+        await api.models("openai")
+
+    assert _paths(calls) == ["/api/v1/llm/openai/models"] * 2
+
+
 # --- The gateway's response cache ----------------------------------------------
 
 

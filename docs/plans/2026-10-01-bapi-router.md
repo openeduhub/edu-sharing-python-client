@@ -103,3 +103,40 @@ Abhängigkeiten: `router` kennt `client` nur unter `TYPE_CHECKING` — wie
 - `uv run python scripts/sync_skill.py --check`
 - `-m live` nur für die neuen Router-Tests (luna); keine Route darf übrig bleiben
 - CI nach dem Push
+
+## Phase 2 — ersetzt der Router `virtual_models`? (2026-10-01, nach `8fa49a7`)
+
+**Ergebnis: nein — die beiden ergänzen sich.**
+
+| | `virtual_models` (Client) | Route (Gateway) |
+|---|---|---|
+| Wo festgelegt | in jeder Anwendung | einmal auf dem Gateway, für alle Schlüssel eines Kontos oder alle Konten |
+| Wer wählt | die Bibliothek, je Aufruf | das Gateway, je Anfrage |
+| Reihenfolge | nach gemessener Last (AcademicCloud), sonst wie geschrieben | Stufe und Gewicht; Last wird nicht genutzt |
+| Anfragekörper | **je Kandidat der passende** | **einer für alle** — Familien nicht mischbar (B1) |
+| Über Provider hinweg | bisher nein | ja |
+| Austausch ohne Deployment | nein | ja |
+| Braucht | nichts | eine Route (Admin oder `LLM_ROUTE_MANAGE`) |
+
+Die Lücke dazwischen: am Router nimmt eine Gruppe nur Routennamen, weil
+`rank_among` jedes Mitglied in `models("router")` sucht — und dort steht nie
+ein `provider/modell`. Eine Gruppe aus `provider/modell`-Namen am Router wäre
+genau die Bündelung über Provider hinweg mit je passendem Körper, die keiner
+der beiden Wege heute bietet.
+
+Entscheidungen:
+- Am Router darf eine Gruppe Routen **und** `provider/modell` nennen. Jeder
+  Name muss existieren — Routen in `models("router")`, `provider/modell` in
+  der Modellliste seines Providers. Das Versprechen „jeder Name muss
+  existieren" bleibt so auch hier.
+- Am Router gilt die geschriebene Reihenfolge: Lastzahlen eines Providers sagen
+  nichts gegen einen anderen, der keine meldet. Wer nach Last wählen will,
+  nimmt wie bisher `provider="academiccloud"`.
+- Die Modellliste wird **je Provider** gemerkt (bisher nur die des eigenen) —
+  sonst kostete jede Gruppe mit `openai/…` eine Liste von 141 Modellen je
+  Aufruf.
+
+Aufgaben (je erst der rote Test): Merken je Provider · Gruppen am Router mit
+`provider/modell` · Beispiel `28_bapi_bundling.py` mit Offline-Test ·
+REFERENCE/README/Skill/TRAPS/CHANGELOG „Route oder virtuelles Modell?" ·
+Live-Test · danach `better-coding-review` über die ganze Router-Integration.

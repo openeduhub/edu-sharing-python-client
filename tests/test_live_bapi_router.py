@@ -47,6 +47,22 @@ async def test_the_pattern_reaches_one_provider_without_a_route(router):
 
 
 @pytest.mark.live
+async def test_a_group_at_the_router_spans_providers(router):
+    """Both names are checked against their providers' lists before anything
+    is sent; luna, written first, answers. The AcademicCloud member is asked
+    for -- its ids change within weeks."""
+    spare = (await router.load("academiccloud")).least_loaded
+    if spare is None:
+        pytest.skip("the AcademicCloud reports no usable text model right now")
+
+    answer = await router.chat(QUESTION, model=[f"openai/{LUNA}", f"academiccloud/{spare.id}"],
+                               max_tokens=64)
+
+    assert answer.strip()
+    assert router.last_model == LUNA
+
+
+@pytest.mark.live
 async def test_a_name_without_a_route_is_refused_by_the_gateway(router):
     with pytest.raises(ValidationError, match="No route configured"):
         await router.chat(QUESTION, model=f"es-client-live-{secrets.token_hex(4)}")

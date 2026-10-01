@@ -662,7 +662,7 @@ holdings were compared against their initial state after every run.
 | `bapi/models.py` | Which model: choice, load, retirement — pure functions |
 | `bapi/body.py` | What the request body must look like — pure functions |
 | `bapi/_response.py` | Nested response validation shared by proxy and template parsers; explicit decisions and complete embedding indices |
-| `bapi/choice.py` | Which model answers: a group or an explicit list, the ranking when the caller left the choice open, the cap on guessing, and the switch to the next candidate. `chat` and `respond` share it |
+| `bapi/choice.py` | Which model answers: a group or an explicit list — at the router routes and `provider/model` across providers — the ranking when the caller left the choice open, the cap on guessing, and the switch to the next candidate. `chat` and `respond` share it |
 | `bapi/client.py` | HTTP to the b-api, retry, concurrency, TTL cache |
 | `bapi/passthrough.py` | Forwarded routes — embeddings, moderation, images, `call` for JSON and `call_bytes` for binary responses |
 | `bapi/router.py` | The gateway's router: `Route` and `Deployment`, which models a name reaches in the gateway's own order, who answered, and the requests that manage an account's routes |

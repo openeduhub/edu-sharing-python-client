@@ -943,11 +943,25 @@ at the router. The same question twice comes back with the same answer and
 the same id, and nothing marks it. `BildungsAPI(gateway_cache=False)` asks past
 the cache.
 
-A route is not a virtual model: the router goes by tier and weight, not by
-load. `virtual_models` stays for that. The details are in
+**A route does not replace a virtual model.** A route sends one body to every
+model it holds, so it only bundles models of one kind — but it is changed in
+one place, for every application that uses its name. A virtual model
+(`virtual_models`, `model=[…]`) gives each model its own body, can follow the
+AcademicCloud's load, and needs no rights. At the router the two combine: a
+group may span providers.
+
+```python
+# async: BildungsAPI has no blocking facade
+await llm.chat("Summarise: …",
+               model=["openai/gpt-5.6-luna", "academiccloud/gemma-4-31b-it"])
+```
+
+The details, with a table of which to use when, are in
 [docs/REFERENCE.md](docs/REFERENCE.md), under *The router*.
 
-Try it: `python docs/examples/27_bapi_router.py`
+Try it: `python docs/examples/27_bapi_router.py`, and `28_bapi_bundling.py`
+for a group and a route side by side — it creates a route of its own and
+deletes it again.
 
 ### The template mode — prompts kept on the server
 
@@ -1664,6 +1678,7 @@ them:
 | [`21_skills.py`](docs/examples/21_skills.py) | which skills a collection approves, and what one of them says |
 | [`22_bapi_templates.py`](docs/examples/22_bapi_templates.py) | a prompt kept on the server, filled from a collection — and what free text does to it |
 | [`27_bapi_router.py`](docs/examples/27_bapi_router.py) | routes on the gateway: what a name reaches, the body it gets, and the answer cache |
+| [`28_bapi_bundling.py`](docs/examples/28_bapi_bundling.py) | bundling models: a group across two providers, and the same as a route — why one is refused, and one of one kind that answers |
 | [`23_ai_suggestions.py`](docs/examples/23_ai_suggestions.py) | the model proposes keywords, a program takes the best one over — and reads it back |
 | [`24_generic_metadata.py`](docs/examples/24_generic_metadata.py) | MDS, custom profile, vocabularies and snapshots |
 | [`25_prepare_context.py`](docs/examples/25_prepare_context.py) | Material draft and collection context, read-only |

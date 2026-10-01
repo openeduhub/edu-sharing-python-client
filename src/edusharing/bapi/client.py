@@ -135,8 +135,8 @@ class BildungsAPI:
         base_url: gateway address.
         provider: ``academiccloud``, ``openai`` or ``router``.
         max_concurrency: concurrent requests.
-        models_cache_seconds: how long the model list -- and the router's
-            route list -- stays valid. ``0`` disables the cache,
+        models_cache_seconds: how long each provider's model list -- and the
+            router's route list -- stays valid. ``0`` disables the cache,
             ``CACHE_FOREVER`` asks exactly once.
         retries_before_switching: how often one model is retried before the
             next candidate is tried instead. The last candidate keeps the full
@@ -207,7 +207,8 @@ class BildungsAPI:
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._client = client or httpx.AsyncClient(timeout=timeout)
         self._owns_client = client is None
-        self._models_cache: tuple[float, list[Model]] | None = None
+        # Per provider: a group at the router reads the lists of several.
+        self._models_cache: dict[str, tuple[float, list[Model]]] = {}
         self._models_lock = asyncio.Lock()
         #: Whether forwarded requests may be answered from the gateway's cache.
         self.gateway_cache = gateway_cache
@@ -265,23 +266,28 @@ class BildungsAPI:
     # --- Requests ---------------------------------------------------------
 
     async def models(self, provider: str | None = None) -> list[Model]:
-        """The models of this provider, with load figures where reported."""
+        """The models of this provider, with load figures where reported.
+
+        Each provider's list is kept for ``models_cache_seconds`` -- not only
+        this client's own. A group at the router checks every
+        ``provider/model`` name against its provider's list, and without that
+        each such call fetched OpenAI's 141 models first.
+        """
         which = provider or self.provider
 
         def from_cache() -> list[Model] | None:
+            cached = self._models_cache.get(which)
             if (
                 self.models_cache_seconds > 0
-                and self._models_cache
-                and which == self.provider
-                and time.monotonic() - self._models_cache[0]
-                < self.models_cache_seconds
+                and cached is not None
+                and time.monotonic() - cached[0] < self.models_cache_seconds
             ):
                 # A copy: the list belongs to whoever receives it, and a ``clear()`` or
                 # ``sort()`` from there would otherwise change what every later model
                 # choice picks from -- under ``CACHE_FOREVER`` for good (audit MNT-20-1,
                 # the same class as F02 for the vocabulary). ``Model`` is frozen, so the
                 # shallow copy is enough.
-                return list(self._models_cache[1])
+                return list(cached[1])
             return None
 
         cached = from_cache()
@@ -301,8 +307,7 @@ class BildungsAPI:
             response = await self._request("GET", f"/api/v1/llm/{path_segment(which)}/models")
             raw = response.get("data") if isinstance(response, dict) else response
             models = [Model.from_response(m) for m in _items(raw, "models", "data")]
-            if which == self.provider:
-                self._models_cache = (now, list(models))
+            self._models_cache[which] = (now, list(models))
             return models
 
     async def load(
@@ -360,6 +365,10 @@ class BildungsAPI:
                 With ``provider="router"`` the id is a route's name or
                 ``provider/model``. The body is built for the models behind it,
                 read from the route list, and the gateway chooses among them.
+                A list or group there may mix routes and ``provider/model``
+                across providers: it keeps the order written, every name is
+                checked against its provider's list, and each member gets the
+                body of its own family.
             system: system message; effective only when ``prompt`` is a string.
             thinking: allow Qwen3 to think. Defaults to ``False`` -- see
                 ``body``.

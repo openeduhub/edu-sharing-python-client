@@ -1500,7 +1500,9 @@ models behind the name; `build_body(model, messages, upstream=[…])` and
   sends a body of your own.
 * A name the list does not know — or a list that cannot be read — leaves the
   body to the name, as for any id, and the gateway answers for itself:
-  `400 No route configured for model '…'`.
+  `400 No route configured for model '…'`. For the body the list is read once,
+  without retries, so a list that does not answer does not hold the request
+  up; `api.routes()` itself retries as any read does.
 
 **`last_model` names the model that answered.** Through the router the
 answer's `model` field is the only word on which deployment answered — no

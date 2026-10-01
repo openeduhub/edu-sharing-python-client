@@ -1547,7 +1547,10 @@ Routenliste und bauen den Rumpf für die Modelle hinter dem Namen;
   Rumpf.
 * Ein Name, den die Liste nicht kennt — oder eine Liste, die sich nicht lesen
   lässt — überlässt den Rumpf dem Namen, wie bei jeder ID, und das Gateway
-  antwortet selbst: `400 No route configured for model '…'`.
+  antwortet selbst: `400 No route configured for model '…'`. Für den Rumpf
+  wird die Liste einmal gelesen, ohne Wiederholung, damit eine Liste, die nicht
+  antwortet, die Anfrage nicht aufhält; `api.routes()` selbst wiederholt wie
+  jedes Lesen.
 
 **`last_model` nennt das Modell, das geantwortet hat.** Über den Router ist
 das Feld `model` der Antwort die einzige Auskunft darüber, welches Deployment

@@ -641,6 +641,40 @@ async def test_when_the_routes_cannot_be_read_the_name_decides(caplog):
     assert "PermissionDeniedError" in caplog.text
 
 
+async def test_a_route_list_that_does_not_answer_is_asked_once_per_call():
+    """Review 2026-10-01: the lookup spent the client's full retry budget --
+    four reads, about 16 s at the defaults -- before every request through the
+    router, and again on the next. The body can follow the name at once."""
+    calls = []
+
+    def handler(request):
+        if request.url.path == ROUTES:
+            return httpx.Response(503, json={"message": "routing store unavailable"})
+        return httpx.Response(200, json=ANSWER)
+
+    async with _client(handler, calls, provider="router") as api:
+        await api.chat("hi", model="openai/gpt-5.6-luna")
+
+    assert [f"{c.method} {c.url.path}" for c in calls] == [
+        f"GET {ROUTES}", "POST /api/v1/llm/router/chat/completions"]
+
+
+async def test_routes_itself_keeps_the_full_retry_budget():
+    """Only the lookup for a body asks once; whoever calls ``routes()`` wants
+    the list and waits for it as for any other read."""
+    calls = []
+
+    def handler(request):
+        if len(calls) == 1:
+            return httpx.Response(503, json={"message": "busy"})
+        return httpx.Response(200, json=[OWN])
+
+    async with _client(handler, calls) as api:
+        assert [r.name for r in await api.routes()] == ["fast"]
+
+    assert len(calls) == 2
+
+
 async def test_a_provider_other_than_the_router_asks_for_no_routes():
     calls = []
     async with _client(_gateway(), calls, provider="openai") as api:

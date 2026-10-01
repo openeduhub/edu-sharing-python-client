@@ -241,7 +241,10 @@ async def upstream_lookup(
     if which != ROUTER:
         return lambda _name: None
     try:
-        known = await list_routes(api)
+        # Asked once: the body can follow the name at once, and the full retry
+        # budget -- about 16 s at the defaults -- held up every request through
+        # the router while the list did not answer (review 2026-10-01).
+        known = await list_routes(api, max_retries=0)
     except EduSharingError as exc:
         # The request may still be answered: a route of older models takes
         # the body a name gets anyway, and the pattern needs no list.
@@ -260,11 +263,14 @@ def _cached(api: BildungsAPI) -> list[Route] | None:
     return None
 
 
-async def list_routes(api: BildungsAPI) -> list[Route]:
+async def list_routes(api: BildungsAPI, *, max_retries: int | None = None) -> list[Route]:
     """The account's routes and the enabled global ones.
 
     Kept as long as the model list (``models_cache_seconds``); every change
     through this client empties it.
+
+    Args:
+        max_retries: the budget for this read; ``None`` is the client's own.
 
     A list read while this client changed a route is returned but not kept.
     Review 2026-10-01: emptying the cache did not stop a read already in
@@ -284,7 +290,7 @@ async def list_routes(api: BildungsAPI) -> list[Route]:
             return cached
         now = time.monotonic()
         generation = api._routes_generation
-        raw = await api._request("GET", _ROUTES, cacheable=False)
+        raw = await api._request("GET", _ROUTES, cacheable=False, max_retries=max_retries)
         routes = [Route.from_response(item, f"[{index}]")
                   for index, item in enumerate(_items(raw, _WHERE, "response"))]
         if api._routes_generation == generation:

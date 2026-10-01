@@ -513,7 +513,9 @@ the model behind `provider/model`. Measured on staging (2026-10-01):
   — luna and gemma, say — keep the group in the client: at the router
   `model=["openai/gpt-5.6-luna", "academiccloud/gemma-4-31b-it"]` spans
   providers and gives each member its own body. Every name is checked against
-  its provider's list first; the order written is the order tried.
+  its provider's list first — a list that does not answer leaves its members
+  unchecked rather than stopping the group; the order written is the order
+  tried.
 
 ```python
 # async: BildungsAPI has no blocking facade

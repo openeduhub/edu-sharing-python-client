@@ -98,6 +98,16 @@ async def _offered_at_router(api: BildungsAPI, group: Sequence[str]) -> list[Mod
     A provider's load figure is dropped: one provider's demand says nothing
     against another's that reports none, so at the router the order written is
     the order tried.
+
+    A list that cannot be read does not stop the group. Review 2026-10-01: the
+    AcademicCloud's list answering 503 ended the call before luna, healthy and
+    first, was asked -- the very outage a group across providers is for. Such a
+    member is asked unchecked, after one attempt at its list, and a warning
+    says so. An unknown provider is refused: that is the group's mistake, not
+    an outage.
+
+    Raises:
+        ValidationError: for a provider the gateway does not know.
     """
     offered = await api.models(ROUTER)
     routes = {m.id for m in offered}
@@ -106,7 +116,16 @@ async def _offered_at_router(api: BildungsAPI, group: Sequence[str]) -> list[Mod
         if name in routes or parts is None:
             continue
         provider, model = parts
-        entry = next((m for m in await api.models(provider) if m.id == model), None)
+        try:
+            listed = await api._models(provider, max_retries=0)
+        except ValidationError:
+            raise
+        except EduSharingError as exc:
+            logger.warning("could not check %s against its provider's list (%s); "
+                           "it is asked unchecked", name, type(exc).__name__)
+            offered.append(Model(id=name))
+            continue
+        entry = next((m for m in listed if m.id == model), None)
         if entry is not None:
             offered.append(replace(entry, id=name, demand=None))
     return offered

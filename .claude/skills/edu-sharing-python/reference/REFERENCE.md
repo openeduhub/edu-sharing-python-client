@@ -1560,7 +1560,10 @@ api.last_model       # "gpt-5.6-luna" -- or gemma, when luna did not answer
 
 * **Every name has to exist**: a route in the router's list, `provider/model`
   in its provider's own list, checked before anything is sent. Each provider's
-  list is kept for `models_cache_seconds`.
+  list is kept for `models_cache_seconds`. A list that does not answer does
+  not stop the group: it is asked once, and its members are tried unchecked,
+  with a warning in the log — a group across providers is there for exactly
+  that outage. An unknown provider is refused.
 * **The order written is the order tried.** One provider's load says nothing
   against another's that reports none; for a choice by load, stay at
   `provider="academiccloud"`.

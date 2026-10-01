@@ -1613,7 +1613,10 @@ api.last_model       # "gpt-5.6-luna" -- oder gemma, wenn luna nicht antwortete
 * **Jeder Name muss existieren**: eine Route in der Liste des Routers,
   `provider/modell` in der eigenen Liste seines Providers, geprüft, bevor
   etwas hinausgeht. Die Liste jedes Providers wird `models_cache_seconds` lang
-  gemerkt.
+  gemerkt. Eine Liste, die nicht antwortet, hält die Gruppe nicht auf: sie wird
+  einmal gefragt, und ihre Mitglieder werden ungeprüft versucht, mit einer
+  Warnung im Log — für genau diesen Ausfall ist eine Gruppe über Provider
+  hinweg da. Ein unbekannter Provider wird abgelehnt.
 * **Die geschriebene Reihenfolge ist die Reihenfolge der Versuche.** Die
   Auslastung eines Providers sagt nichts gegen einen anderen, der keine meldet;
   wer nach Auslastung wählen will, bleibt bei `provider="academiccloud"`.

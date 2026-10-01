@@ -542,8 +542,9 @@ Route, oder das Modell hinter `provider/modell`. Gemessen auf Staging
   — luna und gemma etwa — die Gruppe im Client lassen: am Router mischt
   `model=["openai/gpt-5.6-luna", "academiccloud/gemma-4-31b-it"]` die Provider
   und gibt jedem Mitglied seinen eigenen Rumpf. Jeder Name wird vorher gegen
-  die Liste seines Providers geprüft; die geschriebene Reihenfolge ist die
-  Reihenfolge der Versuche.
+  die Liste seines Providers geprüft — eine Liste, die nicht antwortet, lässt
+  ihre Mitglieder ungeprüft, statt die Gruppe aufzuhalten; die geschriebene
+  Reihenfolge ist die Reihenfolge der Versuche.
 
 ```python
 # async: BildungsAPI hat keine blockierende Fassade

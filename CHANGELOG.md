@@ -100,8 +100,11 @@ and in [`docs/audits/`](docs/audits/).
   in the order written and gives each the body of its own family -- what a
   route cannot do, because the router hands every deployment one body. Every
   name is checked first: a route against the router's list, `provider/model`
-  against its provider's own. A group at the router used to take route names
-  only and refused the pattern with "Not offered here".
+  against its provider's own. A list that does not answer is asked once and
+  leaves its members unchecked, with a warning, rather than stopping the group
+  -- the first version ended the call with `ServerError` before luna, healthy
+  and first, was asked (review 2026-10-01). A group at the router used to take
+  route names only and refused the pattern with "Not offered here".
 - **Does the router replace `virtual_models`? No -- the two complement each
   other.** A route is kept on the gateway and changed in one place for every
   application, but it bundles models of one kind and ignores load; a virtual

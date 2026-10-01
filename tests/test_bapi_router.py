@@ -752,6 +752,59 @@ async def test_an_unknown_provider_in_a_group_is_refused_before_sending():
     assert _paths(calls, "POST") == []
 
 
+def _academic_list_down(answer=lambda body: httpx.Response(200, json=ANSWER)):
+    """The AcademicCloud's model list fails; everything else answers."""
+    def handler(request):
+        if request.url.path == "/api/v1/llm/academiccloud/models":
+            return httpx.Response(503, json={"message": "upstream unavailable"})
+        return _providers(answer)(request)
+    return handler
+
+
+async def test_a_provider_whose_list_is_down_does_not_stop_the_group(caplog):
+    """Review 2026-10-01: the check of an unreadable list ended the whole group
+    with ServerError -- no request at all, luna healthy and first. A group
+    across providers exists for exactly that outage."""
+    calls = []
+    caplog.set_level("WARNING", logger="edusharing.bapi.choice")
+    async with _client(_academic_list_down(), calls, provider="router") as api:
+        await api.chat("hi", model=SPREAD)
+
+        assert api.last_model == "gpt-5.6-luna"
+
+    assert [_sent(c)["model"] for c in calls if c.method == "POST"] == ["openai/gpt-5.6-luna"]
+    assert "academiccloud/gemma-4-31b-it" in caplog.text
+
+
+async def test_an_unreadable_list_is_asked_once_not_retried():
+    """The check is a courtesy; waiting the full retry budget for it -- about
+    16 s at the defaults -- would hold up the members that work."""
+    calls = []
+    async with _client(_academic_list_down(), calls, provider="router") as api:
+        await api.chat("hi", model=SPREAD)
+
+    assert _paths(calls).count("/api/v1/llm/academiccloud/models") == 1
+
+
+async def test_a_member_that_could_not_be_checked_is_still_tried():
+    calls = []
+
+    def answer(body):
+        if body["model"] == "openai/gpt-5.6-luna":
+            return httpx.Response(503, json={"error": "Model pricing unavailable for "
+                                                      "'gpt-5.6-luna' - cannot enforce cost quota"})
+        return httpx.Response(200, json={**ANSWER, "model": "gemma-4-31b-it"})
+
+    async with _client(_academic_list_down(answer), calls, provider="router") as api:
+        await api.chat("hi", model=SPREAD)
+
+        assert api.last_model == "gemma-4-31b-it"
+
+    sent = [_sent(c) for c in calls if c.method == "POST"]
+    assert [s["model"] for s in sent] == SPREAD
+    assert "max_tokens" in sent[1], "unchecked, but still built for its own family"
+
+
 async def test_a_route_and_a_provider_model_in_one_group():
     calls = []
     async with _client(_providers(), calls, provider="router") as api:

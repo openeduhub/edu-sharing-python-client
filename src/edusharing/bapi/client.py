@@ -273,8 +273,14 @@ class BildungsAPI:
         ``provider/model`` name against its provider's list, and without that
         each such call fetched OpenAI's 141 models first.
         """
-        which = provider or self.provider
+        return await self._models(provider or self.provider)
 
+    async def _models(self, which: str, *, max_retries: int | None = None) -> list[Model]:
+        """``models`` with a retry budget of its own for the fetch.
+
+        The check of a group at the router asks once: it must not hold up the
+        members that work while one provider's list does not answer.
+        """
         def from_cache() -> list[Model] | None:
             cached = self._models_cache.get(which)
             if (
@@ -304,7 +310,8 @@ class BildungsAPI:
                 return cached
 
             now = time.monotonic()
-            response = await self._request("GET", f"/api/v1/llm/{path_segment(which)}/models")
+            response = await self._request("GET", f"/api/v1/llm/{path_segment(which)}/models",
+                                           max_retries=max_retries)
             raw = response.get("data") if isinstance(response, dict) else response
             models = [Model.from_response(m) for m in _items(raw, "models", "data")]
             self._models_cache[which] = (now, list(models))
@@ -367,8 +374,8 @@ class BildungsAPI:
                 read from the route list, and the gateway chooses among them.
                 A list or group there may mix routes and ``provider/model``
                 across providers: it keeps the order written, every name is
-                checked against its provider's list, and each member gets the
-                body of its own family.
+                checked against its provider's list where that list answers,
+                and each member gets the body of its own family.
             system: system message; effective only when ``prompt`` is a string.
             thinking: allow Qwen3 to think. Defaults to ``False`` -- see
                 ``body``.

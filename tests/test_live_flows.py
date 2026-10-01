@@ -413,6 +413,11 @@ async def test_weitere_dokumente_an_einem_hauptdokument(repo, ordner):
     Die noetige Kombination ist nicht zu erraten -- ccm:io_childobject ist ein
     ASPEKT, kein Typ, und ohne assocType=ccm:childio antwortet die Instanz mit
     HTTP 500. Gemessen am 27.08.2026.
+
+    Rot auf Staging seit dem 10.09.2026, wie die Download-Tests in
+    ``test_live_write``: der Download-Servlet liefert privaten Inhalt niemandem
+    aus (``test_das_download_servlet_liefert_nur_oeffentliches``). Gesehen erst
+    am 01.10.2026 -- vorher endete der Test schon beim Anlegen des Ordners.
     """
     haupt = await repo.create_node(ordner.id, name="hauptdokument.txt",
                                    title="Das Arbeitsblatt")

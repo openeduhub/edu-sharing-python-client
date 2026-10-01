@@ -40,10 +40,8 @@ Drei neue Flows: `prepare_material` erstellt einen prüfbaren Entwurf,
 Die Ergänzungen sind offline mit API-Mocks geprüft; zusätzliche Live-Instanzen
 wurden für diese Version nicht verändert oder als verifiziert angenommen.
 
-Version 0.3.0 ist umgesetzt und in `main` gemergt; der Release-Tag folgt erst nach der
-Live-Abnahme aus dem Release-Ablauf unten, zu installieren ist also `main`.
-Die älteren Tags `v0.1.0` und `v0.2.0` liegen im Entwicklungsrepositorium,
-das unter *Autor* steht.
+Version 0.3.0 selbst wurde nie getaggt; ihre Änderungen stecken in jedem Tag ab
+`v0.3.1` — siehe [*Eine bestimmte Version installieren*](#eine-bestimmte-version-installieren).
 
 
 ## Installieren
@@ -386,17 +384,16 @@ uv pip install --upgrade "git+https://github.com/openeduhub/edu-sharing-python-c
 
 ### Eine bestimmte Version installieren
 
-Der aktuelle Tag ist `v0.3.5`:
+Der aktuelle Tag ist `v0.3.6`:
 
 ```bash
-python -m pip install "git+https://github.com/openeduhub/edu-sharing-python-client@v0.3.5"
+python -m pip install "git+https://github.com/openeduhub/edu-sharing-python-client@v0.3.6"
 ```
 
-`@main` oben folgt dem, was seither dazugekommen ist. Jeder frühere Tag ab `v0.0.1`
-liegt hier wie im
-Entwicklungsrepositorium unter [*Autor*](#autor), das denselben `main` und die
-ganze Geschichte trägt; wie ein Tag hierherkommt, sagt der Release-Ablauf am
-Ende dieser Datei.
+`@main` oben folgt dem, was seither dazugekommen ist. Jeder Tag ab `v0.0.1`
+liegt hier; das Entwicklungsrepositorium unter [*Autor*](#autor) ist eine
+Kopie, die von Hand abgeglichen wird und hinterherhinken kann. Wie ein Tag
+hierherkommt, sagt der Release-Ablauf am Ende dieser Datei.
 
 > **Nicht `@v0.1.0`, woher auch immer.** Dieser Tag stammt aus der Zeit vor
 > mehreren Prüfrunden und kennt weder die Metadatenprofile noch die
@@ -1866,11 +1863,11 @@ So entsteht die nächste Version mit Release-Tag:
    Veröffentlichung ist der eine Moment, in dem die Live-Beweise nicht
    optional sind. Verweigert die Instanz einen davon, sagt es der
    Changelog-Eintrag: welche Beweise vorliegen, welche nicht und warum.
-   `-m write` braucht seit dem 21.09.2026 eine Toolpermission, die diesem
-   Konto fehlt — der Schritt war in seiner ersten Fassung also gar nicht
-   erfüllbar, und ein Schritt, den niemand erfüllen kann, wird still
-   übergangen statt festgehalten; hinterher ist dann nicht mehr zu erkennen,
-   ob er es wurde.
+   `-m write` braucht eine Toolpermission, die diesem Konto vom 21.09.2026
+   bis spätestens zum 01.10.2026 fehlte — der Schritt war in seiner ersten
+   Fassung also gar nicht erfüllbar, und ein Schritt, den niemand erfüllen
+   kann, wird still übergangen statt festgehalten; hinterher ist dann nicht
+   mehr zu erkennen, ob er es wurde.
 6. **Committen, dann ein annotierter Tag** mit der Nummer aus Schritt 1:
    `git tag -a v<Nummer> -m "<Nummer>"`, danach `git push --follow-tags`. Das
    ausgeschriebene Beispiel, das hier stand, nannte 0.3.0 -- und nannte es vier
@@ -1888,10 +1885,10 @@ damit — bitte erst einmal nicht öffentlich.
 
 ## Autor
 
-**Jan Schachtschabel.** Entwickelt unter
-[`janschachtschabel/edu-sharing-python-client`](https://github.com/janschachtschabel/edu-sharing-python-client), veröffentlicht hier
-unter [`openeduhub/edu-sharing-python-client`](https://github.com/openeduhub/edu-sharing-python-client); beide tragen denselben
-`main`, die älteren Tags liegen im Entwicklungsrepositorium. Installiert wird
+**Jan Schachtschabel.** Gepflegt und veröffentlicht hier unter
+[`openeduhub/edu-sharing-python-client`](https://github.com/openeduhub/edu-sharing-python-client); zuerst entwickelt unter
+[`janschachtschabel/edu-sharing-python-client`](https://github.com/janschachtschabel/edu-sharing-python-client), einer Kopie, die
+von Hand abgeglichen wird und hinterherhinken kann. Installiert wird
 von hier, gemeldet wird hier — Issues ebenso wie die nichtöffentlichen
 Hinweise aus [`SECURITY.md`](SECURITY.md).
 

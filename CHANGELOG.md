@@ -10,14 +10,47 @@ compared against. The leading zeros are honest — the surface may still move.
 
 The library is published at [`openeduhub/edu-sharing-python-client`](https://github.com/openeduhub/edu-sharing-python-client);
 install and report there. The comparison links at the foot of this file point
-at [`janschachtschabel/edu-sharing-python-client`](https://github.com/janschachtschabel/edu-sharing-python-client), which carries the
-same `main` and the tags these versions are named after.
+there as well: every tag these versions are named after is in that repository.
+It was first developed at [`janschachtschabel/edu-sharing-python-client`](https://github.com/janschachtschabel/edu-sharing-python-client),
+a copy that is synced by hand and can lag behind.
 
 Every entry that names a number was measured. Where a change came from a
 measurement against a live instance, the date and the instance are in the code
 and in [`docs/audits/`](docs/audits/).
 
 ## [Unreleased]
+
+Nothing yet.
+
+## [0.3.6] — 2026-10-01
+
+**What was proven, and what was not.** `ruff check .` clean, `mypy` clean over
+80 files, `pytest -q` 3 059 passed and 12 skipped. Against staging, run without
+the b-api key: `-m live` 90 passed, 39 skipped and 1 failed; `-m write` 82
+passed, 4 skipped and 6 failed. The staging account may create folders again,
+so the write suite reached its requests for the first time since 2026-09-21 --
+and showed what it could not show then:
+
+- four tests download a private file -- one of them is the live failure, a
+  write test that carries the live marker too. The download servlet has refused
+  private content to everyone since 2026-09-10;
+  `test_das_download_servlet_liefert_nur_oeffentliches` holds that
+  measurement, and `text()` is the route for a private node.
+- `test_recht_entziehen_laesst_die_uebrigen_stehen` revokes the account's own
+  entry, and staging keeps it -- measured, Coordinator and Consumer alike,
+  while grant and publish arrive. `revoke` reports it as `SilentDropError`, not
+  as a success; whether the instance guards against a lockout this way cannot
+  be told from outside.
+- example 03 still fetched its private file through `download()`. It reads it
+  through `text()` now and passed on its own afterwards.
+
+Each of them fails at a step this release left as it was: `download()` and
+`revoke` read as they did in 0.3.5. The uploads before them went through,
+although their mimetype check moved to `_checks`. The b-api ran as far as the
+agreed test rule allows, `gpt-5.6-luna` and nothing else: the router suite
+passed 5 of 5, and examples 27 and 28 ran through -- all three again on the
+tree this tag names. `test_live_bapi.py`, the template suite and the examples
+that ask other models were not run.
 
 ### Security
 
@@ -298,6 +331,21 @@ and in [`docs/audits/`](docs/audits/).
   providers and says the gateway takes a Bearer as well -- measured 200; a test
   docstring that claimed 401 is corrected. The English skill's call table
   carried a German phrase ("weicht wie `chat` aus").
+- **Example 03 reads its file back through `text()`.** It fetched it through
+  `download()`, which the instance refuses for private content -- the
+  example's own library had said so since 2026-09-10, and the example failed
+  the first write run that could reach that step.
+- **Where the library lives, said once and true.** Four places -- the
+  changelog's head, both READMEs, CONTRIBUTING -- said the development
+  repository carries the same `main`. It is a copy synced by hand and can lag
+  behind; every tag is on `openeduhub`, and the comparison links below point
+  there now, so that the link to a new version works on the day it is tagged.
+  The note that 0.3.0's tag "awaits the live acceptance" goes too: 0.3.0 was
+  never tagged, and its changes are in every tag from `v0.3.1` on.
+- **Release step 5 no longer says the account lacks the write right.** Both
+  READMEs said so in the present tense; the account had it again on
+  2026-10-01. The step keeps the dates and why it asks for a withheld proof
+  to be named.
 
 ### Tests
 
@@ -1973,13 +2021,14 @@ services; 1095 offline tests and 94 live ones against edu-sharing 11.0.
   500 for one address, or when a node's content is refused; both are reported
   per row.
 
-[Unreleased]: https://github.com/janschachtschabel/edu-sharing-python-client/compare/v0.3.5...HEAD
-[0.3.5]: https://github.com/janschachtschabel/edu-sharing-python-client/compare/v0.3.4...v0.3.5
-[0.3.4]: https://github.com/janschachtschabel/edu-sharing-python-client/compare/v0.3.3...v0.3.4
-[0.3.3]: https://github.com/janschachtschabel/edu-sharing-python-client/compare/v0.3.2...v0.3.3
-[0.3.2]: https://github.com/janschachtschabel/edu-sharing-python-client/compare/v0.3.1...v0.3.2
-[0.3.1]: https://github.com/janschachtschabel/edu-sharing-python-client/compare/v0.2.0...v0.3.1
-[0.3.0]: https://github.com/janschachtschabel/edu-sharing-python-client/compare/v0.2.0...main
-[0.2.0]: https://github.com/janschachtschabel/edu-sharing-python-client/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/janschachtschabel/edu-sharing-python-client/compare/v0.0.1...v0.1.0
-[0.0.1]: https://github.com/janschachtschabel/edu-sharing-python-client/releases/tag/v0.0.1
+[Unreleased]: https://github.com/openeduhub/edu-sharing-python-client/compare/v0.3.6...HEAD
+[0.3.6]: https://github.com/openeduhub/edu-sharing-python-client/compare/v0.3.5...v0.3.6
+[0.3.5]: https://github.com/openeduhub/edu-sharing-python-client/compare/v0.3.4...v0.3.5
+[0.3.4]: https://github.com/openeduhub/edu-sharing-python-client/compare/v0.3.3...v0.3.4
+[0.3.3]: https://github.com/openeduhub/edu-sharing-python-client/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/openeduhub/edu-sharing-python-client/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/openeduhub/edu-sharing-python-client/compare/v0.2.0...v0.3.1
+[0.3.0]: https://github.com/openeduhub/edu-sharing-python-client/compare/v0.2.0...main
+[0.2.0]: https://github.com/openeduhub/edu-sharing-python-client/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/openeduhub/edu-sharing-python-client/compare/v0.0.1...v0.1.0
+[0.0.1]: https://github.com/openeduhub/edu-sharing-python-client/releases/tag/v0.0.1

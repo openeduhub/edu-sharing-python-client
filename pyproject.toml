@@ -1,6 +1,6 @@
 [project]
 name = "edu-sharing-python-client"
-version = "0.3.5"
+version = "0.3.6"
 description = "Python client for edu-sharing repositories and the b-api -- repository-agnostic, async-first"
 readme = "README.md"
 requires-python = ">=3.11"

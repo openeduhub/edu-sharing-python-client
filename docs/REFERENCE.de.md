@@ -106,7 +106,7 @@ Ereignisschleife in einem Thread für Sie.
 
 | Aufruf | Ergebnis |
 |---|---|
-| `edusharing.__version__` | `str` — `"0.3.5"`, aus den Paketdaten gelesen |
+| `edusharing.__version__` | `str` — `"0.3.6"`, aus den Paketdaten gelesen |
 | `Repository(url, auth=(user, password))` | die Verbindung |
 | `Repository.from_env()` | liest `EDU_SHARING_URL`, `EDU_SHARING_USER`, `EDU_SHARING_PASSWORD`, optional `EDU_SHARING_METADATASET` — ohne diese gilt `-default-`, auf WLO ein anderes Repositorium: 2826 Treffer für „Physik" gegen 18006 mit `mds_oeh` (gemessen 11.09.2026), und manche Kriterien lehnt es rundheraus ab |
 | `Repository("https://benutzer:passwort@host")` | abgewiesen — eine Adresse steht im Log; Zugangsdaten gehören in `auth=` oder die Umgebung |

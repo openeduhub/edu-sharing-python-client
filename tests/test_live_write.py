@@ -464,6 +464,12 @@ async def test_veroeffentlichen_laesst_fremde_eintraege_stehen(repo, knoten):
 
 
 async def test_recht_entziehen_laesst_die_uebrigen_stehen(repo, knoten):
+    """Rot auf Staging, gemessen am 01.10.2026: das Entziehen des **eigenen**
+    Eintrags wird nicht gespeichert -- Coordinator wie Consumer bleiben stehen,
+    waehrend Vergeben und Veroeffentlichen ankommen. ``revoke`` meldet das als
+    ``SilentDropError`` und eben nicht als Erfolg. Ob die Instanz damit ein
+    Aussperren verhindert, ist von aussen nicht zu entscheiden; dieser Test
+    faellt, solange es so ist."""
     wer = await repo.whoami()
     await knoten.permissions.grant(wer.authority, "Coordinator")
     await knoten.permissions.publish()

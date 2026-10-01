@@ -35,10 +35,8 @@ places existing material with reference identity and partial failures, and
 These additions are tested offline with API mocks; additional live installations
 were not modified or assumed verified for this version.
 
-Version 0.3.0 is implemented and merged into `main`; its release tag awaits the live
-acceptance required by the release procedure below, so `main` is what to install.
-The older tags `v0.1.0` and `v0.2.0` are in the development repository named under
-*Author*.
+Version 0.3.0 itself was never tagged; its changes are in every tag from `v0.3.1`
+on — see [*Installing a specific version*](#installing-a-specific-version).
 
 
 ## Installing
@@ -381,17 +379,16 @@ uv pip install --upgrade "git+https://github.com/openeduhub/edu-sharing-python-c
 
 ### Installing a specific version
 
-The current tag is `v0.3.5`:
+The current tag is `v0.3.6`:
 
 ```bash
-python -m pip install "git+https://github.com/openeduhub/edu-sharing-python-client@v0.3.5"
+python -m pip install "git+https://github.com/openeduhub/edu-sharing-python-client@v0.3.6"
 ```
 
-`@main` above tracks whatever has landed since. Every earlier tag from `v0.0.1`
-onwards exists here as well as in the development
-repository named under [*Author*](#author), which carries the same `main` and
-the full history; the release procedure at the end of this file says how a tag
-gets here.
+`@main` above tracks whatever has landed since. Every tag from `v0.0.1` onwards
+is here; the development repository named under [*Author*](#author) is a copy
+that is synced by hand and can lag behind. The release procedure at the end of
+this file says how a tag gets here.
 
 > **Not `@v0.1.0`, wherever you take it from.** It predates three review
 > rounds, and it does not have the metadata profiles or the composed flows.
@@ -1826,10 +1823,10 @@ To publish the next tagged version:
    live suites against staging — `-m live` and `-m write`. A release is the
    one moment the live proofs are not optional. Where the instance withholds
    one, say so in the changelog entry: which proofs were given, which were
-   not, and why. `-m write` has needed a toolpermission this account does not
-   have since 2026-09-21, so the step as first written could not be met at
-   all — and a step nobody can meet is quietly skipped instead of recorded,
-   which leaves no way to tell afterwards whether it was.
+   not, and why. `-m write` needs a toolpermission this account lacked from
+   2026-09-21 until 2026-10-01 at the latest, so the step as first written
+   could not be met at all — and a step nobody can meet is quietly skipped
+   instead of recorded, which leaves no way to tell afterwards whether it was.
 6. **Commit, then an annotated tag** using the number from step 1:
    `git tag -a v<number> -m "<number>"`, then `git push --follow-tags`. The
    worked example that used to stand here named 0.3.0 and was still naming it
@@ -1846,10 +1843,10 @@ first, please.
 
 ## Author
 
-**Jan Schachtschabel.** Developed at
-[`janschachtschabel/edu-sharing-python-client`](https://github.com/janschachtschabel/edu-sharing-python-client) and published here at
-[`openeduhub/edu-sharing-python-client`](https://github.com/openeduhub/edu-sharing-python-client); both carry the same `main`,
-and the older tags are in the development repository. Install from this one,
+**Jan Schachtschabel.** Maintained and published here at
+[`openeduhub/edu-sharing-python-client`](https://github.com/openeduhub/edu-sharing-python-client); first developed at
+[`janschachtschabel/edu-sharing-python-client`](https://github.com/janschachtschabel/edu-sharing-python-client), a copy that is
+synced by hand and can lag behind. Install from this one,
 and report here — issues as well as the private advisories in
 [`SECURITY.md`](SECURITY.md).
 

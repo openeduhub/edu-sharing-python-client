@@ -67,12 +67,15 @@ def write_and_read_back(repo: Repository, folder: Node) -> None:
     node = node.add_keywords("Weimar (Ort)")
     print(f"  keywords: {node.keywords}")
 
-    # 5. Attach a file and fetch it back.
-    content = "An example text with umlauts: Größe, Übung.\n".encode()
-    node = node.content.upload(content, filename="material.txt",
+    # 5. Attach a file and read it back. Through text(), not download(): the
+    #    download servlet serves public content only and answers 403 for a
+    #    private node, whoever asks (measured 2026-09-10); text() is the REST
+    #    route, and it knows who is asking.
+    content = "An example text with umlauts: Größe, Übung."
+    node = node.content.upload(content.encode(), filename="material.txt",
                                mimetype="text/plain")
-    back = node.content.download()
-    print(f"  file:    {node.content.size} bytes, identical: {back == content}")
+    back = node.content.text()
+    print(f"  file:    {node.content.size} bytes, read back: {back.strip() == content}")
 
 
 def main() -> int:

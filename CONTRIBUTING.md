@@ -8,9 +8,9 @@ first change does not have to guess at it.
 Published at
 [`openeduhub/edu-sharing-python-client`](https://github.com/openeduhub/edu-sharing-python-client)
 — install from there, open issues there, send security reports there
-(see [`SECURITY.md`](SECURITY.md)). Developed at
+(see [`SECURITY.md`](SECURITY.md)). Every tag is there too. First developed at
 [`janschachtschabel/edu-sharing-python-client`](https://github.com/janschachtschabel/edu-sharing-python-client),
-which carries the same `main` and the older tags.
+a copy that is synced by hand and can lag behind.
 
 ## Setting up
 

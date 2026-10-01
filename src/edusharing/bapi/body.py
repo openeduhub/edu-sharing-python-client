@@ -106,10 +106,13 @@ def _takes_completion_tokens(model: str, targets: tuple[str, ...]) -> bool:
     newer = [t for t in targets if t.lower().startswith(_MAX_COMPLETION_PREFIXES)]
     if newer and len(newer) < len(targets):
         older = [t for t in targets if not t.lower().startswith(_MAX_COMPLETION_PREFIXES)]
+        one_newer, one_older = len(newer) == 1, len(older) == 1
         raise ValidationError(
             f"{model!r} reaches models that need different request bodies: "
-            f"{', '.join(map(repr, newer))} need max_completion_tokens and refuse "
-            f"a temperature, {', '.join(map(repr, older))} take max_tokens. The "
+            f"{', '.join(map(repr, newer))} {'needs' if one_newer else 'need'} "
+            f"max_completion_tokens and {'refuses' if one_newer else 'refuse'} a "
+            f"temperature, {', '.join(map(repr, older))} "
+            f"{'takes' if one_older else 'take'} max_tokens. The "
             "router hands one body to every deployment unchanged (measured "
             "2026-10-01), so no single body fits them all. Keep models of one "
             "kind in a route, or send a body of your own: "

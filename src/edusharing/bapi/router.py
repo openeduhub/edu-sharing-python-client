@@ -266,6 +266,11 @@ async def list_routes(api: BildungsAPI) -> list[Route]:
     Kept as long as the model list (``models_cache_seconds``); every change
     through this client empties it.
 
+    A list read while this client changed a route is returned but not kept.
+    Review 2026-10-01: emptying the cache did not stop a read already in
+    flight from storing the state from before the change afterwards, and a
+    route just created stayed out of sight for up to ``models_cache_seconds``.
+
     Raises:
         EduSharingError: when the list cannot be read, or one route in it is
             in the wrong form.
@@ -278,11 +283,19 @@ async def list_routes(api: BildungsAPI) -> list[Route]:
         if cached is not None:
             return cached
         now = time.monotonic()
+        generation = api._routes_generation
         raw = await api._request("GET", _ROUTES, cacheable=False)
         routes = [Route.from_response(item, f"[{index}]")
                   for index, item in enumerate(_items(raw, _WHERE, "response"))]
-        api._routes_cache = (now, routes)
+        if api._routes_generation == generation:
+            api._routes_cache = (now, routes)
         return list(routes)
+
+
+def _changed(api: BildungsAPI) -> None:
+    """A change to a route went out: what is kept, and what is being read, is old."""
+    api._routes_cache = None
+    api._routes_generation += 1
 
 
 async def create_route(api: BildungsAPI, route: Route) -> Route:
@@ -299,7 +312,7 @@ async def create_route(api: BildungsAPI, route: Route) -> Route:
         raw = await api._request("POST", _ROUTES, json=route.as_request(),
                                  repeatable=False, cacheable=False)
     finally:
-        api._routes_cache = None
+        _changed(api)
     return Route.from_response(raw)
 
 
@@ -325,7 +338,7 @@ async def replace_route(api: BildungsAPI, route: Route, *, clear_cache: bool = F
                                  json=route.as_request(clear_cache=clear_cache),
                                  cacheable=False)
     finally:
-        api._routes_cache = None
+        _changed(api)
     return Route.from_response(raw)
 
 
@@ -348,4 +361,4 @@ async def delete_route(api: BildungsAPI, route: Route | str) -> None:
         await api._request("DELETE", f"{_ROUTES}/{path_segment(route_id)}",
                            response_bytes=True, repeatable=False, cacheable=False)
     finally:
-        api._routes_cache = None
+        _changed(api)

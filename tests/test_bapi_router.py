@@ -545,6 +545,39 @@ async def test_a_failed_change_still_empties_the_route_cache():
     assert [c.method for c in calls] == ["GET", "POST", "GET"]
 
 
+async def test_a_list_read_while_a_route_changed_is_not_kept():
+    """Review 2026-10-01: ``routes()`` in flight while ``create_route``
+    completed stored the list from before the change -- the new route stayed
+    out of sight for up to ``models_cache_seconds``, and a chat through it got
+    the body of an unknown name."""
+    stored: list[dict] = []
+    gets = []
+    release = asyncio.Event()
+    first_get = asyncio.Event()
+
+    async def handler(request):
+        if request.method == "GET":
+            gets.append(request)
+            seen = list(stored)          # the gateway's state when the GET arrives
+            if len(gets) == 1:
+                first_get.set()
+                await release.wait()     # its answer travels while the POST completes
+            return httpx.Response(200, json=seen)
+        stored.append(OWN)
+        return httpx.Response(200, json=OWN)
+
+    async with _client(handler, models_cache_seconds=30) as api:
+        listing = asyncio.create_task(api.routes())
+        await first_get.wait()
+        await api.create_route(Route.from_response(OWN))
+        release.set()
+        assert await listing == [], "that answer stands -- it was the state when asked"
+        names = [r.name for r in await api.routes()]
+
+    assert names == ["fast"]
+    assert len(gets) == 2
+
+
 # --- Asking through the router ------------------------------------------------
 
 

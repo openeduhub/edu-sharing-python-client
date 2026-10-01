@@ -215,6 +215,8 @@ class BildungsAPI:
         # The router's route list, kept by ``router`` like the model list here.
         self._routes_cache: tuple[float, list[Route]] | None = None
         self._routes_lock = asyncio.Lock()
+        # Counts this client's changes to its routes; see ``router.list_routes``.
+        self._routes_generation = 0
         #: The model the last answer came from. Under automatic selection this
         #: is the only place that says whose answer you are reading.
         self.last_model: str | None = None

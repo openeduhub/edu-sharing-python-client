@@ -86,7 +86,9 @@ and in [`docs/audits/`](docs/audits/).
   `upstream_of` for the gateway's own order -- the account's enabled route,
   then the enabled global one, then the pattern. Creating and deleting are not
   repeated after a failure that may have done their work: a repeat would
-  answer 409 or 404 for a route that was stored or removed.
+  answer 409 or 404 for a route that was stored or removed. A list read while
+  this client changes a route is returned but not kept, so a route just
+  created is not hidden behind the state from before (review 2026-10-01).
 - **`BildungsAPI(gateway_cache=False)`.** The gateway answers a word-for-word
   repeat from a cache -- at the providers too, not only at the router.
   Measured: 0.05 s instead of 0.8 s, the very same `id`, and nothing that

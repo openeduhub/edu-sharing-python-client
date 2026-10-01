@@ -61,6 +61,7 @@ their first line.
   - [The `responses` route](#the-responses-route)
   - [Load, and when to ask for it](#load-and-when-to-ask-for-it)
   - [A virtual model — several ids under one name](#a-virtual-model--several-ids-under-one-name)
+  - [The router — routes kept on the gateway](#the-router--routes-kept-on-the-gateway)
   - [The template mode — `BapiTemplates`](#the-template-mode--bapitemplates)
   - [Text the repository does not have — `TextExtraction`](#text-the-repository-does-not-have--textextraction)
   - [What belongs in a content type's JSON — `MetadataAgent`](#what-belongs-in-a-content-types-json--metadataagent)
@@ -1104,6 +1105,8 @@ its own, which this one does not depend on.
 |---|---|
 | `BildungsAPI(base_url=…, api_key=…)` | the client |
 | `BildungsAPI.from_env()` | needs `B_API_BASE_URL` **and** `B_API_KEY` |
+| `BildungsAPI(base_url=…, api_key=…, gateway_cache=False)` | a client that asks past the gateway's answer cache — see *The gateway's answer cache* below |
+| `BildungsAPI(base_url=…, api_key=…, provider="router")` | a client that asks through the router — see *The router* below |
 | `api.models(provider=…)` | `list[Model]` — cached briefly |
 | `Model` | `can_chat`, `demand`, `id`, `input`, `is_ready`, `name`, `output`, `owned_by`, `shutdown_date`, `status` |
 | `api.chat(prompt, model=…, system=…, max_tokens=…, temperature=…, thinking=…, provider=…)` | `str` — `prompt` is a string or a ready message list (`[{"role": …, "content": …}]`), which is how a conversation of several turns goes in; `temperature` defaults to `0.0`, and the families that refuse a deviating one never get it |
@@ -1423,7 +1426,119 @@ Model choice, when you do not pass one:
 | `rank_models(models)` | least loaded first |
 | `pick_model(models, prefer=…)` | the one to use |
 | `build_body(...)` / `read_answer(response)` | request body and answer text |
+| `build_body(model, messages, upstream=[…])` | one body for every model behind a name at the router — see *The router* |
 | `DEFAULT_MAX_TOKENS` | 1000 |
+
+### The router — routes kept on the gateway
+
+The gateway bundles models of one provider or several under a name — a
+*route* — and chooses among them itself: by priority tier, then by weight, and
+on to the next deployment when one fails. To this client the router is a third
+provider, `router`, beside `academiccloud` and `openai`; the gateway's own
+`/api/v1/llm/provider` lists it so. It is the server-side form of a virtual
+model: one name, configured once, the same for every client of the account.
+
+| Call | Result |
+|---|---|
+| `api.chat(prompt, model="schnell", provider="router")` | `str` — `model` is a route's name, or `provider/model` straight to one provider |
+| `api.respond(prompt, model="schnell", provider="router")` | `Answer` — the body follows the same rule |
+| `api.models(provider="router")` | `list[Model]` — the routes this key can use, without load |
+| `api.routes()` | `list[Route]` — the account's routes and the enabled global ones; cached like the model list |
+| `api.create_route(route)` | `Route` — stored for the account, as the gateway keeps it; needs the account right `LLM_ROUTE_MANAGE` |
+| `api.replace_route(route, clear_cache=False)` | `Route` — the whole route replaced under its `id`; `clear_cache=True` also drops its cached answers |
+| `api.delete_route(route)` | `None` — `route` is the `Route` or its id |
+| `Route(name, deployments, description=None, enabled=True, max_attempts=None)` | a route to create; `id`, `account_id`, `created_at` and `updated_at` are the gateway's and never sent |
+| `Route` | `name`, `deployments`, `description`, `enabled`, `max_attempts`, `id`, `account_id` (`None` for a global route), `created_at`, `updated_at`; `upstream` — the models of its enabled deployments |
+| `Deployment(id, provider, model, tier=0, weight=1, enabled=True)` | one target: a model at a provider |
+| `Deployment` | `id`, `provider`, `model`, `tier`, `weight`, `enabled` |
+| `Route.from_response(body)` / `Deployment.from_response(body)` | the value from the gateway's JSON; a field in the wrong form raises, naming the field |
+| `route.as_request(clear_cache=False)` / `deployment.as_request()` | `dict` — the gateway's spelling: `logicalModel`, `providerId`, `upstreamModel`, `priorityTier` |
+| `upstream_of(name, routes)` | `tuple[str, ...] \| None` — the models a name reaches, in the gateway's own order |
+| `ROUTER` | `"router"` |
+
+```python
+# async: BildungsAPI has no blocking facade
+api = BildungsAPI.from_env(provider="router")
+
+await api.chat("Antworte nur mit OK.", model="openai/gpt-5.6-luna")    # "OK"
+api.last_model                       # "gpt-5.6-luna" -- the model that answered
+
+route = await api.create_route(Route("schnell", [
+    Deployment("luna", "openai", "gpt-5.6-luna"),
+    Deployment("reserve", "openai", "gpt-5-nano", tier=1),
+], description="luna first, nano when it fails"))
+await api.chat("Fasse zusammen: …", model="schnell")
+[r.name for r in await api.routes()]          # ["schnell", …global routes]
+await api.delete_route(route)
+```
+
+**The body is built for the models behind the name.** The router hands one
+body unchanged to whichever deployment it picks — measured 2026-10-01,
+`max_tokens` sent to a route of `gpt-5.6-luna` came back as OpenAI's own 400,
+*"Unsupported parameter: 'max_tokens' … Use 'max_completion_tokens'"*. So
+`chat` and `respond` read the route list first and build the body for the
+models behind the name; `build_body(model, messages, upstream=[…])` and
+`reasoning_for_responses(model, upstream=[…])` take them the same way.
+
+* `provider/model` reaches that model: `openai/gpt-5.6-luna` gets the GPT-5
+  body.
+* A route's name reaches the enabled deployments of the route that applies —
+  the account's enabled route first, then the enabled global one of that
+  name. A route named like the pattern wins over the pattern.
+* The optional parts — the Qwen3 thinking switch, the default
+  `reasoning_effort` and `verbosity` — go in only where **every** model takes
+  them. An explicit value one of them refuses raises `ValidationError`, as it
+  does for a single model.
+* A route that mixes the GPT-5 and o families with others is refused before
+  anything is sent: the first need `max_completion_tokens` and no temperature,
+  the others take `max_tokens`, and whether they take the newer spelling has
+  not been measured. `call("chat/completions", {...}, provider="router")`
+  sends a body of your own.
+* A name the list does not know — or a list that cannot be read — leaves the
+  body to the name, as for any id, and the gateway answers for itself:
+  `400 No route configured for model '…'`.
+
+**`last_model` names the model that answered.** Through the router the
+answer's `model` field is the only word on which deployment answered — no
+header says it — so `last_model` is `"gpt-5.6-luna"`, not the route's name.
+Elsewhere it stays the id that was sent.
+
+**A route is not a virtual model.** The router goes by tier and weight, not by
+load; the AcademicCloud's `demand` is not used. `virtual_models` stays for
+that, and it works at any gateway. A group of routes there is a fallback chain,
+as at OpenAI.
+
+Measured 2026-10-01 against staging, beyond the above:
+
+* `weight` is a whole number above 0, relative within its tier — 0 is refused,
+  and equal weights share equally.
+* A second route of the same name in one account answers 409
+  (`ConflictError`), an unknown id 404 with no body (`NotFoundError`). A field
+  check answers `{"<field>": "<message>"}`, and the error names the field.
+* A route whose deployments are all disabled is still listed, and answers
+  `503 No deployment could serve model '…' (no deployment left)`.
+* `created_at` and `updated_at` come without a zone; they are UTC.
+* A typo behind a provider prefix — `openai/<route name>` — goes to that
+  provider and comes back `503 Model pricing unavailable`, which this client
+  does not repeat.
+* `create_route` and `delete_route` are not repeated after a failure that may
+  have done their work; `replace_route` is, like any idempotent request.
+
+#### The gateway's answer cache
+
+The gateway answers a word-for-word repeat from its cache — at the providers
+and at the router alike, and `provider/model` shares the provider's. Measured
+2026-10-01: the repeat took 0.05 s instead of 0.8 s and came back with the very
+same `id`, `created` and `usage`. Nothing marks it, neither a header nor a
+field. A repeated question gets the same answer, whatever `temperature` says.
+
+| Call | Result |
+|---|---|
+| `BildungsAPI(…, gateway_cache=True)` | the default: a repeat may come from the cache |
+| `BildungsAPI(…, gateway_cache=False)` | every forwarded request carries `ignore-caching=true` — measured, it neither reads the cache nor stores the new answer |
+| `api.replace_route(route, clear_cache=True)` | drops what the gateway cached for that route |
+
+The route management declares no cache flag, and this client sends none there.
 
 ### The template mode — `BapiTemplates`
 

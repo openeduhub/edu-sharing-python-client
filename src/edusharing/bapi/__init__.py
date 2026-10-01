@@ -44,6 +44,7 @@ from .models import (
     rank_models,
 )
 from .passthrough import Answer, GeneratedImage, Moderation
+from .router import ROUTER, Deployment, Route, upstream_of
 from .templates import BapiTemplates, NodeConfig
 
 __all__ = ["BildungsAPI", "BapiTemplates", "NodeConfig", "Model", "pick_model", "rank_models",
@@ -51,4 +52,6 @@ __all__ = ["BildungsAPI", "BapiTemplates", "NodeConfig", "Model", "pick_model", 
            # Model choice and load
            "LoadReport", "load_report", "rank_among", "CACHE_FOREVER",
            # The forwarded OpenAI routes
-           "Moderation", "GeneratedImage", "Answer"]
+           "Moderation", "GeneratedImage", "Answer",
+           # Routes kept on the gateway
+           "ROUTER", "Route", "Deployment", "upstream_of"]

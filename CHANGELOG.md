@@ -65,6 +65,37 @@ and in [`docs/audits/`](docs/audits/).
   price is the glyph variant of a CJK ideograph, never the ideograph (audit
   SEC-23-4).
 
+### Added
+
+- **The b-api's router: `provider="router"`.** Since the end of September the
+  gateway bundles models of one provider or several under a name -- a route
+  -- and picks among them by tier and weight, moving on when one fails.
+  `chat` and `respond` take a route's name, or `provider/model` straight to
+  one provider. Measured 2026-10-01 against staging: the router hands one
+  request body unchanged to whichever model it picks, and `max_tokens` sent to
+  a route of `gpt-5.6-luna` came back as OpenAI's own 400 -- the very body this
+  library built for any name it did not know. The body is now built for the
+  models behind the name, read from the route list (`build_body(...,
+  upstream=...)`, `reasoning_for_responses(..., upstream=...)`); a route that
+  mixes the GPT-5 and o families with older models raises `ValidationError`
+  before anything is sent, because no single body fits both. `last_model`
+  names the model that answered, taken from the answer -- nothing else says
+  which deployment it was.
+- **The account's routes**: `routes()`, `create_route()`, `replace_route()`
+  and `delete_route()`, with the values `Route` and `Deployment`, and
+  `upstream_of` for the gateway's own order -- the account's enabled route,
+  then the enabled global one, then the pattern. Creating and deleting are not
+  repeated after a failure that may have done their work: a repeat would
+  answer 409 or 404 for a route that was stored or removed.
+- **`BildungsAPI(gateway_cache=False)`.** The gateway answers a word-for-word
+  repeat from a cache -- at the providers too, not only at the router.
+  Measured: 0.05 s instead of 0.8 s, the very same `id`, and nothing that
+  marks it, so a repeated question gets the first answer whatever the
+  temperature. With the switch off every forwarded request carries
+  `ignore-caching=true`, which neither reads the cache nor stores the answer.
+- `docs/examples/27_bapi_router.py`: what each route reaches, the body it
+  gets, and the cache.
+
 ### Fixed
 
 - **An error object from a proxy no longer crashes a repository call.** The
@@ -144,6 +175,9 @@ and in [`docs/audits/`](docs/audits/).
 
 ### Changed
 
+- **A b-api error without a body says so.** The router answers an unknown
+  route id with a 404 that carries no body at all, and the message ended in
+  a colon; it reads "(the gateway sent no message)" now.
 - **Every input check raises `ValidationError`, and `ValidationError` is
   also a `ValueError`.** Nineteen checks across twelve modules -- an empty
   comment, query, proposal or preview image, a rating of zero, a grant of
@@ -233,6 +267,12 @@ and in [`docs/audits/`](docs/audits/).
   and suggestions. The skill's error table gives `ValidationError` its 422
   and says it is also a `ValueError`, and CONTRIBUTING names the language
   guard a contributor will meet.
+- **The router, in every place the gateway is described**: the reference
+  (*The router*, *The gateway's answer cache*), the READMEs, the skill and
+  TRAPS 2.17, both languages each. The client's docstring now names three
+  providers and says the gateway takes a Bearer as well -- measured 200; a test
+  docstring that claimed 401 is corrected. The English skill's call table
+  carried a German phrase ("weicht wie `chat` aus").
 
 ### Tests
 
@@ -246,6 +286,11 @@ and in [`docs/audits/`](docs/audits/).
   argument outranks its variable in `BapiTemplates.from_env` -- so the key
   goes where the caller pointed it -- is written down and tested as well
   (audit TST-23-1).
+- **The router**: `tests/test_bapi_router.py` runs offline against every
+  rule above -- the body per route, the gateway's order, retries, the cache
+  flag -- and each body rule was seen to fail with the rule broken.
+  `tests/test_live_bapi_router.py` runs against the gateway with a throwaway
+  route of its own and `gpt-5.6-luna` only, and deletes the route again.
 
 ## [0.3.5] — 2026-09-21
 

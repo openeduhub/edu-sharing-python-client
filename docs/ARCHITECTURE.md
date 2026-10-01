@@ -665,6 +665,7 @@ holdings were compared against their initial state after every run.
 | `bapi/choice.py` | Which model answers: a group or an explicit list, the ranking when the caller left the choice open, the cap on guessing, and the switch to the next candidate. `chat` and `respond` share it |
 | `bapi/client.py` | HTTP to the b-api, retry, concurrency, TTL cache |
 | `bapi/passthrough.py` | Forwarded routes — embeddings, moderation, images, `call` for JSON and `call_bytes` for binary responses |
+| `bapi/router.py` | The gateway's router: `Route` and `Deployment`, which models a name reaches in the gateway's own order, who answered, and the requests that manage an account's routes |
 
 Three decisions that need explaining:
 

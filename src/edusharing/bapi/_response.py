@@ -45,6 +45,14 @@ def _boolean(value: Any, route: str, field: str) -> bool:
     return value
 
 
+def _whole(value: Any, route: str, field: str) -> int:
+    # ``type`` rather than ``isinstance``: ``True`` is an int to Python and a
+    # boolean to the sender.
+    if type(value) is not int:
+        raise _invalid(route, field, "a whole number")
+    return value
+
+
 def _number(value: Any, route: str, field: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise _invalid(route, field, "a finite number")

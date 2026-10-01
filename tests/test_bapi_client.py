@@ -60,8 +60,10 @@ def _router(request):
 # --- Auth ------------------------------------------------------------------
 
 async def test_schluessel_geht_als_x_api_key():
-    """Gemessen: die b-api verlangt X-API-KEY. Ein Authorization-Bearer
-    ergibt 401 -- dieselbe Falle wie bei edu-sharing, nur andersherum."""
+    """Der Client schickt X-API-KEY, und nur den. Gemessen 2026-10-01 nimmt
+    die b-api auch einen Authorization-Bearer an (200) -- die fruehere Zeile
+    hier, ein Bearer ergebe 401, stimmte nicht. Bei edu-sharing ist es
+    andersherum: dort gilt Basic, und ein Bearer wird uebergangen."""
     aufrufe = []
     async with _client(_router, aufrufe) as api:
         await api.models()
@@ -987,6 +989,10 @@ PROXY_FLAECHE = frozenset({
     "backoff_base", "base_url", "last_model", "max_retries",
     "models_cache_seconds", "provider", "retries_before_switching",
     "virtual_models",
+    # Das Routing der B-API am 01.10.2026: die Routen des Kontos lesen und
+    # verwalten, und der Antwort-Cache des Gateways -- bewusst am Proxy, denn
+    # der Router ist fuer das Gateway ein dritter Provider.
+    "routes", "create_route", "replace_route", "delete_route", "gateway_cache",
 })
 
 

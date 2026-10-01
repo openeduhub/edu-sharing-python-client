@@ -586,6 +586,7 @@ Metadatensatzes und nicht der Eigenschaft selbst.
   - [Für KI-Anwendungen](#für-ki-anwendungen)
   - [Den Skill im eigenen Werkzeug nutzen](#den-skill-im-eigenen-werkzeug-nutzen)
   - [Das LLM-Gateway](#das-llm-gateway)
+  - [Der Router — Modellgruppen, die auf dem Gateway liegen](#der-router--modellgruppen-die-auf-dem-gateway-liegen)
   - [Der Template-Modus — Prompts, die auf dem Server liegen](#der-template-modus--prompts-die-auf-dem-server-liegen)
   - [Der Extraktionsdienst — Text, den das Repositorium nicht hat](#der-extraktionsdienst--text-den-das-repositorium-nicht-hat)
   - [Der Metadata Agent — was in den JSON einer Inhaltsart gehört](#der-metadata-agent--was-in-den-json-einer-inhaltsart-gehört)
@@ -920,6 +921,43 @@ Auf der Liste: `chat/completions`, `completions`, `embeddings`, `moderations`,
 `batches`, `fine_tuning/jobs`, `vector_stores`. **Nicht** darauf: `rerank`.
 
 Zum Ausprobieren: `python docs/examples/04_agent_blocks.py` und `20_provider_load.py`
+
+### Der Router — Modellgruppen, die auf dem Gateway liegen
+
+Seit Ende September 2026 bündelt das Gateway Modelle eines oder mehrerer
+Provider unter einem Namen — einer *Route* — und wählt selbst unter ihnen:
+nach Prioritätsstufe, dann nach Gewicht, und beim Fehlschlag weiter zum
+nächsten Deployment. Für die Bibliothek ist der Router ein dritter Provider:
+
+```python
+# async: BildungsAPI hat keine blockierende Fassade
+from edusharing.bapi import BildungsAPI
+
+async with BildungsAPI.from_env(provider="router") as llm:
+    await llm.chat("Fasse zusammen: …", model="meine-route")          # der Name einer Route
+    await llm.chat("Fasse zusammen: …", model="openai/gpt-5.6-luna")  # direkt an einen Provider
+    print(llm.last_model)                     # das Modell, das antwortete
+    routen = await llm.routes()               # die des Kontos und die globalen
+```
+
+**Der Router reicht einen Rumpf unverändert weiter**, an das Modell, das er
+wählt — gemessen 2026-10-01: `max_tokens` an eine Route aus `gpt-5.6-luna` kam
+als OpenAIs eigenes 400 zurück. Darum liest die Bibliothek die Routenliste und
+baut den Rumpf für die Modelle hinter dem Namen; eine Route, die GPT-5 mit
+älteren Modellen mischt, wird abgelehnt, bevor etwas hinausgeht. Ein Konto mit
+dem Recht `LLM_ROUTE_MANAGE` legt seine eigenen Routen mit `create_route`,
+`replace_route` und `delete_route` an, ersetzt und löscht sie.
+
+**Das Gateway beantwortet eine Wiederholung aus seinem Cache** — bei jedem
+Provider, nicht nur beim Router. Dieselbe Frage zweimal kommt mit derselben
+Antwort und derselben id zurück, und nichts kennzeichnet das.
+`BildungsAPI(gateway_cache=False)` fragt am Cache vorbei.
+
+Eine Route ist kein virtuelles Modell: der Router geht nach Stufe und Gewicht,
+nicht nach Auslastung. Dafür bleibt `virtual_models`. Die Einzelheiten stehen
+in [docs/REFERENCE.de.md](docs/REFERENCE.de.md), unter *Der Router*.
+
+Zum Ausprobieren: `python docs/examples/27_bapi_router.py`
 
 ### Der Template-Modus — Prompts, die auf dem Server liegen
 
@@ -1660,6 +1698,7 @@ wird:
 | [`20_provider_load.py`](docs/examples/20_provider_load.py) | welches Modell antworten soll, und woran man das misst - Auslastung, Verbünde, Verweigerung |
 | [`21_skills.py`](docs/examples/21_skills.py) | welche Skills eine Sammlung freigibt, und was einer davon sagt |
 | [`22_bapi_templates.py`](docs/examples/22_bapi_templates.py) | ein Prompt, der auf dem Server liegt, gefüllt aus einer Sammlung — und was freier Text mit ihm macht |
+| [`27_bapi_router.py`](docs/examples/27_bapi_router.py) | Routen auf dem Gateway: was ein Name erreicht, welchen Rumpf er bekommt, und der Antwort-Cache |
 | [`23_ai_suggestions.py`](docs/examples/23_ai_suggestions.py) | das Modell schlägt Schlagworte vor, ein Programm übernimmt das beste — und liest es zurück |
 | [`24_generic_metadata.py`](docs/examples/24_generic_metadata.py) | MDS, eigenes Profil, Vokabulare und Snapshots |
 | [`25_prepare_context.py`](docs/examples/25_prepare_context.py) | Materialentwurf und Sammlungskontext, rein lesend |

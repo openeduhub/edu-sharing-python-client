@@ -35,6 +35,7 @@ einen Knoten lesen, Teil 2, bevor man einem Ergebnis traut.
   - [2.14 Ein Skill ist ein Datensatz mit Inhaltsart — und der Metadatensatz entscheidet, ob man danach filtern kann](#214-ein-skill-ist-ein-datensatz-mit-inhaltsart--und-der-metadatensatz-entscheidet-ob-man-danach-filtern-kann)
   - [2.15 Ein Datensatz ist nicht in dem Moment auffindbar, in dem er angelegt wurde](#215-ein-datensatz-ist-nicht-in-dem-moment-auffindbar-in-dem-er-angelegt-wurde)
   - [2.16 Der Template-Modus — der Prompt liegt auf dem Server](#216-der-template-modus--der-prompt-liegt-auf-dem-server)
+  - [2.17 Der Router reicht einen Rumpf an jedes Modell, und das Gateway antwortet aus einem Cache](#217-der-router-reicht-einen-rumpf-an-jedes-modell-und-das-gateway-antwortet-aus-einem-cache)
 
 ## 1. Wie edu-sharing Metadaten ablegt
 
@@ -508,4 +509,39 @@ Prompt selbst steht im Metadatenset. Gemessen auf Staging (11.09.2026):
 templates = BapiTemplates.from_env()
 await templates.chat(["topic_page_ai_default", "topic_page_ai_chat_completion",
                       "topic_page_ai_text_widget"], context_node_id=collection_id)
+```
+
+### 2.17 Der Router reicht einen Rumpf an jedes Modell, und das Gateway antwortet aus einem Cache
+
+Mit `provider="router"` steht ein Name für Modelle — die Deployments einer
+Route, oder das Modell hinter `provider/modell`. Gemessen auf Staging
+(2026-10-01):
+
+- **Der Rumpf geht unverändert weiter.** `max_tokens` an eine Route aus
+  `gpt-5.6-luna` kam als OpenAIs eigenes 400 zurück. Die Bibliothek baut den
+  Rumpf für die Modelle hinter dem Namen, gelesen aus `api.routes()`. Eine
+  Route, die die GPT-5- und o-Familien mit älteren Modellen mischt, lässt sich
+  mit keinem einzelnen Rumpf bedienen, und `chat` lehnt sie vor dem Senden mit
+  `ValidationError` ab — einen eigenen Rumpf schickt
+  `call("chat/completions", {...}, provider="router")`, oder man hält Modelle
+  einer Art in einer Route.
+- **Nur die Antwort sagt, wer geantwortet hat.** Keine Kopfzeile nennt das
+  Deployment; das Feld `model` der Antwort tut es, und `api.last_model` nimmt
+  es von dort.
+- **Ein Tippfehler hinter einem Provider-Präfix ist keine unbekannte Route.**
+  `openai/<name>` geht an OpenAI und kommt als `503 Model pricing unavailable`
+  zurück; ein bloßer unbekannter Name als `400 No route configured`.
+- **Das Gateway beantwortet eine wortgleiche Wiederholung aus seinem Cache** —
+  auch bei den Providern, nicht nur beim Router. Die Wiederholung kam in
+  0,05 s mit derselben `id`, demselben `created` und derselben `usage`, und
+  nichts kennzeichnete sie. Wer dieselbe Frage für eine neue Formulierung oder
+  für Abwechslung bei höherer `temperature` stellt, bekommt die erste Antwort.
+  `BildungsAPI(gateway_cache=False)` fragt am Cache vorbei, und
+  `replace_route(route, clear_cache=True)` leert ihn für eine Route.
+
+```python
+# async: BildungsAPI hat keine blockierende Fassade
+api = BildungsAPI.from_env(provider="router", gateway_cache=False)
+await api.chat("Nenne drei Ideen.", model="openai/gpt-5.6-luna")
+api.last_model                     # "gpt-5.6-luna"
 ```

@@ -721,6 +721,7 @@ Bestand wurde nach jedem Lauf gegen seinen Ausgangszustand verglichen.
 | `bapi/choice.py` | Welches Modell antwortet: eine Gruppe oder eine ausdrückliche Liste, die Rangfolge, wenn der Aufrufer die Wahl offen ließ, die Obergrenze beim Raten und der Wechsel zum nächsten Kandidaten. `chat` und `respond` teilen sie |
 | `bapi/client.py` | HTTP zur b-api, Wiederholung, Nebenläufigkeit, Cache mit Verfallszeit |
 | `bapi/passthrough.py` | Durchgereichte Routen — Einbettungen, Moderation, Bilder, `call` für JSON und `call_bytes` für binäre Antworten |
+| `bapi/router.py` | Der Router des Gateways: `Route` und `Deployment`, welche Modelle ein Name erreicht, in der Reihenfolge des Gateways, wer geantwortet hat, und die Anfragen, die die Routen eines Kontos verwalten |
 
 Drei Entscheidungen, die eine Erklärung brauchen:
 

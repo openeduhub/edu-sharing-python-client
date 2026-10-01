@@ -17,12 +17,18 @@ The quirks are not optional. All were measured against the b-api:
   ``content`` is null and the text sits in ``reasoning``.
 * **``responses`` wants the two reasoning parameters nested** and refuses the
   flat spelling that ``chat/completions`` requires.
+* **The router hands the body on unchanged.** A route name stands for several
+  models, and the one body goes to whichever the router picks -- measured
+  2026-10-01, ``max_tokens`` sent to a route of ``gpt-5.6-luna`` came back as
+  OpenAI's own 400. So ``upstream`` names the models behind a name, and the
+  body has to fit all of them.
 
 Pure functions throughout, so all of it is testable without network access.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from ..errors import ValidationError
@@ -77,28 +83,76 @@ UNSET = _Default()
 ReasoningParam = str | _Default | None
 
 
+def _targets(model: str, upstream: str | Sequence[str] | None) -> tuple[str, ...]:
+    """The models one body has to fit: those behind the name, or the name.
+
+    One model given as text is one model -- not the letters of its name.
+    """
+    if isinstance(upstream, str):
+        return (upstream,)
+    return tuple(upstream) if upstream else (model,)
+
+
+def _takes_completion_tokens(model: str, targets: tuple[str, ...]) -> bool:
+    """Whether the body carries ``max_completion_tokens`` and no temperature.
+
+    Raises:
+        ValidationError: when the models behind the name need both layouts.
+            The router sends one body to every deployment unchanged, so none
+            fits them all -- which this library knows from the 400 the newer
+            family answers for ``max_tokens``. Whether the older ones take
+            ``max_completion_tokens`` has not been measured.
+    """
+    newer = [t for t in targets if t.lower().startswith(_MAX_COMPLETION_PREFIXES)]
+    if newer and len(newer) < len(targets):
+        older = [t for t in targets if not t.lower().startswith(_MAX_COMPLETION_PREFIXES)]
+        raise ValidationError(
+            f"{model!r} reaches models that need different request bodies: "
+            f"{', '.join(map(repr, newer))} need max_completion_tokens and refuse "
+            f"a temperature, {', '.join(map(repr, older))} take max_tokens. The "
+            "router hands one body to every deployment unchanged (measured "
+            "2026-10-01), so no single body fits them all. Keep models of one "
+            "kind in a route, or send a body of your own: "
+            "call('chat/completions', {...}, provider='router')."
+        )
+    return bool(newer)
+
+
+def _switches_thinking(model: str) -> bool:
+    key = model.lower()
+    return key.startswith(_THINKING_PREFIXES) and not any(k in key for k in _NO_CHAT_TEMPLATE)
+
+
 def _reasoning_param(
-    body: dict[str, Any], name: str, value: Any, model: str, *, default: str
+    body: dict[str, Any], name: str, value: Any, model: str, *, default: str,
+    targets: tuple[str, ...] | None = None,
 ) -> None:
     """Put one reasoning parameter into the body, or account for why not.
 
+    Args:
+        targets: the models the body has to fit. Defaults to ``model``.
+
     Raises:
-        ValidationError: when the caller asked for a value this model does
-            not take. Not a plain ValueError: the library's promise is that
-            every failure is an EduSharingError.
+        ValidationError: when the caller asked for a value one of the models
+            does not take. Not a plain ValueError: the library's promise is
+            that every failure is an EduSharingError.
     """
     if value is None:
         return
-    accepts = model.lower().startswith(_REASONING_PREFIXES)
+    targets = targets or (model,)
+    refusing = [t for t in targets if not t.lower().startswith(_REASONING_PREFIXES)]
     if isinstance(value, _Default):
         # A default: apply it where it works, drop it silently where it does
         # not. That is what makes it a default rather than a request.
-        if accepts:
+        if not refusing:
             body[name] = default
         return
-    if not accepts:
+    if refusing:
+        subject = (f"Model {model!r} does" if refusing == [model]
+                   else f"{model!r} reaches {', '.join(map(repr, refusing))}, which "
+                        + ("does" if len(refusing) == 1 else "do"))
         raise ValidationError(
-            f"Model {model!r} does not take {name}={value!r} -- it answers 400. "
+            f"{subject} not take {name}={value!r} -- it answers 400. "
             f"Only the {', '.join(_REASONING_PREFIXES)} families accept it. "
             f"Pass {name}=None to leave it out, or choose a model that takes it. "
             "It is not dropped for you: an answer produced without it would be "
@@ -112,6 +166,7 @@ def reasoning_for_responses(
     *,
     reasoning_effort: ReasoningParam = UNSET,
     verbosity: ReasoningParam = UNSET,
+    upstream: str | Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """The same two parameters in the shape the ``responses`` route wants.
 
@@ -124,14 +179,20 @@ def reasoning_for_responses(
     Same rule as everywhere: a default is dropped where the model cannot take
     it, a caller's value raises instead.
 
+    Args:
+        upstream: as in ``build_body``. One token field serves every family
+            here, so a route that mixes them is no conflict -- only the
+            default goes when one of its models cannot take it.
+
     Raises:
         ValidationError: as in ``build_body``.
     """
+    targets = _targets(model, upstream)
     flat: dict[str, Any] = {}
     _reasoning_param(flat, "reasoning_effort", reasoning_effort, model,
-                     default=DEFAULT_EFFORT)
+                     default=DEFAULT_EFFORT, targets=targets)
     _reasoning_param(flat, "verbosity", verbosity, model,
-                     default=DEFAULT_VERBOSITY)
+                     default=DEFAULT_VERBOSITY, targets=targets)
 
     nested: dict[str, Any] = {}
     if "reasoning_effort" in flat:
@@ -151,6 +212,7 @@ def build_body(
     stream: bool = False,
     reasoning_effort: ReasoningParam = UNSET,
     verbosity: ReasoningParam = UNSET,
+    upstream: str | Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Build the request body for the model family of ``model``.
 
@@ -162,15 +224,21 @@ def build_body(
             series. Left unset it defaults to ``low``, which is applied only
             where the model takes it. ``None`` leaves it out entirely.
         verbosity: how long the answer should be, same families, same rule.
+        upstream: the models behind ``model`` when it is a name at the router
+            -- a route's deployments, or ``gpt-5.6-luna`` behind
+            ``openai/gpt-5.6-luna``. The body then fits all of them: the
+            optional parts go in only where every one takes them. ``None``
+            means ``model`` is the model.
 
     Raises:
         ValidationError: when a caller's explicit ``reasoning_effort`` or
-            ``verbosity`` goes to a model that does not accept it.
+            ``verbosity`` goes to a model that does not accept it, and when
+            the models behind a name need different bodies.
     """
-    key = model.lower()
+    targets = _targets(model, upstream)
     body: dict[str, Any] = {"model": model, "messages": messages}
 
-    if key.startswith(_MAX_COMPLETION_PREFIXES):
+    if _takes_completion_tokens(model, targets):
         body["max_completion_tokens"] = max_tokens
         # temperature deliberately omitted -- this family rejects a deviating
         # value with 400.
@@ -178,17 +246,13 @@ def build_body(
         body["max_tokens"] = max_tokens
         body["temperature"] = temperature
 
-    if (
-        not thinking
-        and key.startswith(_THINKING_PREFIXES)
-        and not any(k in key for k in _NO_CHAT_TEMPLATE)
-    ):
+    if not thinking and all(_switches_thinking(t) for t in targets):
         body["chat_template_kwargs"] = {"enable_thinking": False}
 
     _reasoning_param(body, "reasoning_effort", reasoning_effort, model,
-                     default=DEFAULT_EFFORT)
+                     default=DEFAULT_EFFORT, targets=targets)
     _reasoning_param(body, "verbosity", verbosity, model,
-                     default=DEFAULT_VERBOSITY)
+                     default=DEFAULT_VERBOSITY, targets=targets)
 
     if stream:
         body["stream"] = True

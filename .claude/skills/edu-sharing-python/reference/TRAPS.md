@@ -35,6 +35,7 @@ writing to a node, part 2 before trusting a result.
   - [2.14 A skill is a record with a content type — and the metadata set decides whether you can filter on it](#214-a-skill-is-a-record-with-a-content-type--and-the-metadata-set-decides-whether-you-can-filter-on-it)
   - [2.15 A record is not findable the moment it is created](#215-a-record-is-not-findable-the-moment-it-is-created)
   - [2.16 The template mode — the prompt lives on the server](#216-the-template-mode--the-prompt-lives-on-the-server)
+  - [2.17 The router passes one body to every model, and the gateway answers from a cache](#217-the-router-passes-one-body-to-every-model-and-the-gateway-answers-from-a-cache)
 
 ## 1. How edu-sharing stores metadata
 
@@ -483,4 +484,35 @@ itself is in the metadata set. Measured on staging (2026-09-11):
 templates = BapiTemplates.from_env()
 await templates.chat(["topic_page_ai_default", "topic_page_ai_chat_completion",
                       "topic_page_ai_text_widget"], context_node_id=collection_id)
+```
+
+### 2.17 The router passes one body to every model, and the gateway answers from a cache
+
+With `provider="router"` a name stands for models — a route's deployments, or
+the model behind `provider/model`. Measured on staging (2026-10-01):
+
+- **The body goes on unchanged.** `max_tokens` sent to a route of
+  `gpt-5.6-luna` came back as OpenAI's own 400. The library builds the body
+  for the models behind the name, read from `api.routes()`. A route that mixes
+  the GPT-5 and o families with older models cannot be served by one body, and
+  `chat` refuses it with `ValidationError` before sending — send your own body
+  with `call("chat/completions", {...}, provider="router")`, or keep models of
+  one kind in a route.
+- **Only the answer says who answered.** No header names the deployment; the
+  answer's `model` does, and `api.last_model` takes it from there.
+- **A typo behind a provider prefix is no unknown route.** `openai/<name>`
+  goes to OpenAI and comes back `503 Model pricing unavailable`; a bare unknown
+  name comes back `400 No route configured`.
+- **The gateway answers a word-for-word repeat from its cache** — at the
+  providers too, not only at the router. The repeat came back in 0.05 s with
+  the same `id`, `created` and `usage`, and nothing marked it. A second
+  question for a fresh wording, or for variety at a higher `temperature`, gets
+  the first answer. `BildungsAPI(gateway_cache=False)` asks past the cache, and
+  `replace_route(route, clear_cache=True)` empties it for one route.
+
+```python
+# async: BildungsAPI has no blocking facade
+api = BildungsAPI.from_env(provider="router", gateway_cache=False)
+await api.chat("Nenne drei Ideen.", model="openai/gpt-5.6-luna")
+api.last_model                     # "gpt-5.6-luna"
 ```

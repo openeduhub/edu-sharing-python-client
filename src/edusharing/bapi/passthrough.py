@@ -50,7 +50,7 @@ from typing import TYPE_CHECKING, Any
 from .._checks import check_mimetype
 from ..errors import EduSharingError, ValidationError, whole_number
 from ..urls import path_segment
-from . import choice
+from . import choice, router
 from ._response import _boolean, _items, _number, _object, _text, _vectors
 from .body import UNSET, ReasoningParam, _Default, reasoning_for_responses
 
@@ -308,12 +308,17 @@ async def respond(
                 f"={present!r} both set the same thing. Pass one of them."
             )
 
+    which = provider or api.provider
+    # At the router a name stands for models; see ``chat``.
+    upstream_for = await router.upstream_lookup(api, which)
+
     def body_for(mid: str) -> dict[str, Any]:
         # Per candidate: whether the two reasoning parameters may be sent at
         # all depends on the model, so the body is built for the one that is
         # about to be asked -- not once for whoever happened to be named.
         reasoning = reasoning_for_responses(
-            mid, reasoning_effort=reasoning_effort, verbosity=verbosity)
+            mid, reasoning_effort=reasoning_effort, verbosity=verbosity,
+            upstream=upstream_for(mid))
         for key in ("reasoning", "text"):
             if key in extra:
                 reasoning.pop(key, None)
@@ -325,7 +330,6 @@ async def respond(
             **extra,
         }
 
-    which = provider or api.provider
     return await choice.answer_from_candidates(
         api, model, which, _route_path("responses", which), body_for,
         lambda answer, mid: _answer_from(_object(answer, "responses"), mid))

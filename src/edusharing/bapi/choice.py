@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from ..errors import EduSharingError, RateLimitedError, ValidationError
 from .models import Model, is_rankable, rank_among, rank_models
+from .router import answered_by
 
 if TYPE_CHECKING:
     from .client import BildungsAPI
@@ -124,7 +125,7 @@ async def answer_from_candidates(
         # does the same, and the reference states it as the rule -- on
         # 2026-09-21 the two branches briefly drifted apart.
         answer = parse(response, model)
-        api.last_model = model
+        api.last_model = answered_by(which, response, model)
         return answer
     else:
         offered = await api.models(which)
@@ -147,7 +148,7 @@ async def answer_from_candidates(
     to_try = candidates if group is not None \
         else candidates[:DEFAULT_MODEL_ATTEMPTS]
 
-    return await first_that_answers(api, to_try, path, body_for, parse)
+    return await first_that_answers(api, to_try, path, body_for, parse, which=which)
 
 
 async def first_that_answers(
@@ -156,6 +157,8 @@ async def first_that_answers(
     path: str,
     body_for: Callable[[str], dict[str, Any]],
     parse: Callable[[dict[str, Any], str], _Parsed],
+    *,
+    which: str = "",
 ) -> _Parsed:
     """Try the candidates in order and return the first answer.
 
@@ -224,7 +227,7 @@ async def first_that_answers(
                 "chose %s, which the provider retired on %s",
                 candidate.id, candidate.shutdown_date,
             )
-        api.last_model = candidate.id
+        api.last_model = answered_by(which, response, candidate.id)
         return answer
 
     if refused and len(refused) == len(failures):

@@ -2,23 +2,31 @@
 
 Measured against staging:
 
-* **Auth via ``X-API-KEY``**, not Bearer -- the mirror image of edu-sharing,
+* **Auth via ``X-API-KEY``**, which this client sends. The gateway takes a
+  Bearer as well (measured 2026-10-01) -- the mirror image of edu-sharing,
   where Basic applies and a Bearer is ignored.
-* **Two providers**: ``academiccloud`` (with the ``demand`` load figure) and
-  ``openai`` (without). A third name ends in ``400 Provider ... not found``.
+* **Three providers**: ``academiccloud`` (with the ``demand`` load figure),
+  ``openai`` (without), and ``router`` -- names for groups of models kept on
+  the gateway, see ``router``. Any other name ends in
+  ``400 Provider ... not found``.
 * **No quota headers and no ``retry-after``.** A client cannot see its
   remaining allowance and notices a limit only when it fails; exponential
   backoff is all that is possible.
+* **Answers come from a cache.** A word-for-word repeat of a request is
+  answered from the gateway's cache -- measured 2026-10-01 at ``openai`` and
+  at the router: 0.05 s, the very same ``id``, and nothing that marks it.
+  ``gateway_cache=False`` asks past it.
 * **The OpenAPI document comes in groups.** ``/openapi.json``, ``/docs`` and
   ``/health`` serve the Angular frontend. ``/v3/api-docs`` itself describes
   only the gateway's own controllers -- administration, ``/api/v1/llm/provider``
   and the template mode (``templates``) -- and not the routes this client uses.
   Those are in the provider groups that ``/v3/api-docs/swagger-config`` lists:
   ``/v3/api-docs/openai`` and ``/v3/api-docs/academiccloud``, 182 paths each,
-  ``/models`` and ``/chat/completions`` among them. A group describes the
-  OpenAI surface, not what a provider serves -- the AcademicCloud's lists
-  ``/embeddings``, which answers 404 there. Measured 2026-09-11; see
-  ``passthrough`` for how the forwarded routes were found.
+  ``/models`` and ``/chat/completions`` among them -- and since 2026-09
+  ``/v3/api-docs/router``. A group describes the OpenAI surface, not what a
+  provider serves -- the AcademicCloud's lists ``/embeddings``, which answers
+  404 there. Measured 2026-09-11; see ``passthrough`` for how the forwarded
+  routes were found.
 
 A separate HTTP path rather than the edu-sharing ``Transport``: that one's
 credential boundary and error mapping are cut for a repository (basic auth,
@@ -54,11 +62,12 @@ from ..errors import (
 from ..retry import RETRYABLE_STATUS, RetryPolicy, parse_retry_after
 from ..transport import _BEFORE_SENDING
 from ..urls import path_segment, service_base_url
-from . import choice, passthrough
+from . import choice, passthrough, router
 from ._response import _items
 from .body import UNSET, ReasoningParam, build_body, read_answer
 from .choice import DEFAULT_RETRIES_BEFORE_SWITCHING
 from .models import LoadReport, Model, load_report, pick_model
+from .router import Route
 
 __all__ = ["BildungsAPI"]
 
@@ -124,16 +133,21 @@ class BildungsAPI:
     Args:
         api_key: the key. Required.
         base_url: gateway address.
-        provider: ``academiccloud`` or ``openai``.
+        provider: ``academiccloud``, ``openai`` or ``router``.
         max_concurrency: concurrent requests.
-        models_cache_seconds: how long the model list stays valid. ``0``
-            disables the cache, ``CACHE_FOREVER`` asks exactly once.
+        models_cache_seconds: how long the model list -- and the router's
+            route list -- stays valid. ``0`` disables the cache,
+            ``CACHE_FOREVER`` asks exactly once.
         retries_before_switching: how often one model is retried before the
             next candidate is tried instead. The last candidate keeps the full
             ``max_retries`` -- there is nothing left to switch to.
         virtual_models: names for groups of models, e.g.
             ``{"schnell": ["qwen3.6-35b-a3b", "gemma-4-31b-it"]}``.
             ``chat(model="schnell")`` then takes the least loaded of them.
+        gateway_cache: ``False`` asks past the gateway's answer cache on every
+            forwarded request -- it neither reads a cached answer nor stores
+            the new one. Left on, a word-for-word repeat gets the first answer
+            back, whatever the temperature.
     """
 
     def __init__(
@@ -150,6 +164,7 @@ class BildungsAPI:
         retries_before_switching: int = DEFAULT_RETRIES_BEFORE_SWITCHING,
         virtual_models: Mapping[str, Sequence[str]] | None = None,
         client: httpx.AsyncClient | None = None,
+        gateway_cache: bool = True,
     ) -> None:
         if not api_key:
             raise EduSharingError(
@@ -194,6 +209,11 @@ class BildungsAPI:
         self._owns_client = client is None
         self._models_cache: tuple[float, list[Model]] | None = None
         self._models_lock = asyncio.Lock()
+        #: Whether forwarded requests may be answered from the gateway's cache.
+        self.gateway_cache = gateway_cache
+        # The router's route list, kept by ``router`` like the model list here.
+        self._routes_cache: tuple[float, list[Route]] | None = None
+        self._routes_lock = asyncio.Lock()
         #: The model the last answer came from. Under automatic selection this
         #: is the only place that says whose answer you are reading.
         self.last_model: str | None = None
@@ -336,6 +356,10 @@ class BildungsAPI:
 
                 Only the AcademicCloud reports load. At OpenAI a group keeps
                 the order you wrote it in, which makes it a fallback chain.
+
+                With ``provider="router"`` the id is a route's name or
+                ``provider/model``. The body is built for the models behind it,
+                read from the route list, and the gateway chooses among them.
             system: system message; effective only when ``prompt`` is a string.
             thinking: allow Qwen3 to think. Defaults to ``False`` -- see
                 ``body``.
@@ -349,8 +373,9 @@ class BildungsAPI:
                 named model is not offered, or when none of the candidates
                 answered.
             ValidationError: when an explicit ``reasoning_effort`` or
-                ``verbosity`` fits none of the candidates -- nothing is sent in
-                that case.
+                ``verbosity`` fits none of the candidates, and when a route
+                reaches models that need different bodies -- nothing is sent in
+                either case.
         """
         if isinstance(prompt, str):
             messages = [{"role": "user", "content": prompt}]
@@ -361,12 +386,15 @@ class BildungsAPI:
 
         which = provider or self.provider
         path = f"/api/v1/llm/{path_segment(which)}/chat/completions"
+        # At the router a name stands for models, and the body has to fit them.
+        upstream_for = await router.upstream_lookup(self, which)
 
         def body_for(mid: str) -> dict[str, Any]:
             return build_body(
                 mid, messages,
                 max_tokens=max_tokens, temperature=temperature, thinking=thinking,
                 reasoning_effort=reasoning_effort, verbosity=verbosity,
+                upstream=upstream_for(mid),
             )
 
         return await choice.answer_from_candidates(
@@ -479,20 +507,58 @@ class BildungsAPI:
             content_type=content_type, field=field, provider=provider,
             idempotent=idempotent)
 
+    # --- Routes kept on the gateway ---------------------------------------
+    #
+    # Thin as well: the router's rules and measurements are in ``router``.
+
+    async def routes(self) -> list[Route]:
+        """The account's routes and the enabled global ones. See ``router``.
+
+        Kept as long as the model list; a change through this client empties
+        it. Global routes have no ``account_id``; by the gateway's own
+        documentation an account cannot change them.
+        """
+        return await router.list_routes(self)
+
+    async def create_route(self, route: Route) -> Route:
+        """Store a new route for the account. See ``router.create_route``.
+
+        Needs the account right ``LLM_ROUTE_MANAGE``. Not repeated after a
+        failure that may have stored it.
+        """
+        return await router.create_route(self, route)
+
+    async def replace_route(self, route: Route, *, clear_cache: bool = False) -> Route:
+        """Replace a route of the account as a whole. See ``router.replace_route``.
+
+        ``clear_cache=True`` also drops the answers the gateway cached for it.
+        """
+        return await router.replace_route(self, route, clear_cache=clear_cache)
+
+    async def delete_route(self, route: Route | str) -> None:
+        """Delete a route of the account, given as the route or its id."""
+        await router.delete_route(self, route)
+
     async def _pick(self, provider: str) -> Model:
         return pick_model(await self.models(provider))
 
     async def _request(
         self, method: str, path: str, *,
         max_retries: int | None = None, response_bytes: bool = False,
-        max_bytes: int | None = None, repeatable: bool = True, **kwargs: Any,
+        max_bytes: int | None = None, repeatable: bool = True,
+        cacheable: bool = True, **kwargs: Any,
     ) -> Any:
         """One request, retried within the given budget.
 
         ``max_retries`` overrides the client's own budget for this call. The
         candidate loop in ``chat`` uses it to move on quickly while another
         model is still available -- see ``DEFAULT_RETRIES_BEFORE_SWITCHING``.
+
+        ``cacheable`` says the route takes the gateway's cache flags -- every
+        forwarded one does, the route management does not declare them.
         """
+        if cacheable and not self.gateway_cache:
+            kwargs["params"] = {**(kwargs.get("params") or {}), "ignore-caching": "true"}
         url = f"{self.base_url}{path}"
         last: EduSharingError | None = None
         budget = self.max_retries if max_retries is None else max_retries
@@ -581,9 +647,12 @@ class BildungsAPI:
                 message = message.get("message") or message
         else:
             message = response.text
+        # Measured 2026-10-01: the router answers an unknown route id with a
+        # 404 that has no body at all, and the error then ended in a colon.
+        text = str(message)[:300] or "(the gateway sent no message)"
         failure = error_class_for(response.status_code)
         return failure(
-            f"b-api HTTP {response.status_code}: {str(message)[:300]}",
+            f"b-api HTTP {response.status_code}: {text}",
             status=response.status_code, url=url,
             # Only the 429 -- see ``error_from_response`` for why.
             retry_after=(parse_retry_after(response.headers.get("retry-after"))

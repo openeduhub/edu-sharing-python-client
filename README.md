@@ -584,6 +584,7 @@ why; the reference is the lookup table.
   - [For AI applications](#for-ai-applications)
   - [Using the skill in your own tool](#using-the-skill-in-your-own-tool)
   - [The LLM gateway](#the-llm-gateway)
+  - [The router — groups of models kept on the gateway](#the-router--groups-of-models-kept-on-the-gateway)
   - [The template mode — prompts kept on the server](#the-template-mode--prompts-kept-on-the-server)
   - [The extraction service — text the repository does not have](#the-extraction-service--text-the-repository-does-not-have)
   - [The metadata agent — what belongs in a content type's JSON](#the-metadata-agent--what-belongs-in-a-content-types-json)
@@ -910,6 +911,43 @@ it does. On that list: `chat/completions`, `completions`, `embeddings`,
 `rerank`.
 
 Try it: `python docs/examples/04_agent_blocks.py` and `20_provider_load.py`
+
+### The router — groups of models kept on the gateway
+
+Since the end of September 2026 the gateway bundles models of one provider or
+several under a name — a *route* — and chooses among them itself: by priority
+tier, then by weight, and on to the next deployment when one fails. To this
+library the router is a third provider:
+
+```python
+# async: BildungsAPI has no blocking facade
+from edusharing.bapi import BildungsAPI
+
+async with BildungsAPI.from_env(provider="router") as llm:
+    await llm.chat("Summarise: …", model="my-route")             # a route's name
+    await llm.chat("Summarise: …", model="openai/gpt-5.6-luna")  # straight to one provider
+    print(llm.last_model)                     # the model that answered
+    routes = await llm.routes()               # the account's and the global ones
+```
+
+**The router passes one body on unchanged**, to whichever model it picks —
+measured 2026-10-01, `max_tokens` sent to a route of `gpt-5.6-luna` came back
+as OpenAI's own 400. So the library reads the route list and builds the body
+for the models behind the name; a route that mixes GPT-5 with older models is
+refused before anything is sent. An account with the right `LLM_ROUTE_MANAGE`
+creates, replaces and deletes its own routes with `create_route`,
+`replace_route` and `delete_route`.
+
+**The gateway answers a repeat from its cache** — at every provider, not only
+at the router. The same question twice comes back with the same answer and
+the same id, and nothing marks it. `BildungsAPI(gateway_cache=False)` asks past
+the cache.
+
+A route is not a virtual model: the router goes by tier and weight, not by
+load. `virtual_models` stays for that. The details are in
+[docs/REFERENCE.md](docs/REFERENCE.md), under *The router*.
+
+Try it: `python docs/examples/27_bapi_router.py`
 
 ### The template mode — prompts kept on the server
 
@@ -1625,6 +1663,7 @@ them:
 | [`20_provider_load.py`](docs/examples/20_provider_load.py) | which model should answer, and on what basis - load, groups, and a refusal |
 | [`21_skills.py`](docs/examples/21_skills.py) | which skills a collection approves, and what one of them says |
 | [`22_bapi_templates.py`](docs/examples/22_bapi_templates.py) | a prompt kept on the server, filled from a collection — and what free text does to it |
+| [`27_bapi_router.py`](docs/examples/27_bapi_router.py) | routes on the gateway: what a name reaches, the body it gets, and the answer cache |
 | [`23_ai_suggestions.py`](docs/examples/23_ai_suggestions.py) | the model proposes keywords, a program takes the best one over — and reads it back |
 | [`24_generic_metadata.py`](docs/examples/24_generic_metadata.py) | MDS, custom profile, vocabularies and snapshots |
 | [`25_prepare_context.py`](docs/examples/25_prepare_context.py) | Material draft and collection context, read-only |

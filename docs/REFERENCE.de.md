@@ -64,6 +64,7 @@ asynchron gibt, sagen das in ihrer ersten Zeile.
   - [Die Route `responses`](#die-route-responses)
   - [Auslastung, und wann man sie abfragt](#auslastung-und-wann-man-sie-abfragt)
   - [Ein virtuelles Modell — mehrere IDs unter einem Namen](#ein-virtuelles-modell--mehrere-ids-unter-einem-namen)
+  - [Der Router — Routen, die auf dem Gateway liegen](#der-router--routen-die-auf-dem-gateway-liegen)
   - [Der Template-Modus — `BapiTemplates`](#der-template-modus--bapitemplates)
   - [Text, den das Repository nicht hat — `TextExtraction`](#text-den-das-repository-nicht-hat--textextraction)
   - [Was in den JSON-Bereich einer Inhaltsart gehört — `MetadataAgent`](#was-in-den-json-bereich-einer-inhaltsart-gehört--metadataagent)
@@ -1133,6 +1134,8 @@ Template-Modus* weiter unten — eine eigene Klasse, von der diese nicht abhäng
 |---|---|
 | `BildungsAPI(base_url=…, api_key=…)` | der Client |
 | `BildungsAPI.from_env()` | braucht `B_API_BASE_URL` **und** `B_API_KEY` |
+| `BildungsAPI(base_url=…, api_key=…, gateway_cache=False)` | ein Client, der am Antwort-Cache des Gateways vorbei fragt — siehe *Der Antwort-Cache des Gateways* unten |
+| `BildungsAPI(base_url=…, api_key=…, provider="router")` | ein Client, der über den Router fragt — siehe *Der Router* unten |
 | `api.models(provider=…)` | `list[Model]` — kurz gemerkt |
 | `Model` | `can_chat`, `demand`, `id`, `input`, `is_ready`, `name`, `output`, `owned_by`, `shutdown_date`, `status` |
 | `api.chat(prompt, model=…, system=…, max_tokens=…, temperature=…, thinking=…, provider=…)` | `str` — `prompt` ist eine Zeichenkette oder eine fertige Nachrichtenliste (`[{"role": …, "content": …}]`), so geht ein Gespräch über mehrere Runden hinein; `temperature` steht auf `0.0`, und die Familien, die eine abweichende ablehnen, bekommen sie nie |
@@ -1467,7 +1470,128 @@ Modellwahl, wenn Sie keines übergeben:
 | `rank_models(models)` | am wenigsten ausgelastet zuerst |
 | `pick_model(models, prefer=…)` | das zu nehmende |
 | `build_body(...)` / `read_answer(response)` | Anfragerumpf und Antworttext |
+| `build_body(model, messages, upstream=[…])` | ein Rumpf für jedes Modell hinter einem Namen am Router — siehe *Der Router* |
 | `DEFAULT_MAX_TOKENS` | 1000 |
+
+### Der Router — Routen, die auf dem Gateway liegen
+
+Das Gateway bündelt Modelle eines oder mehrerer Provider unter einem Namen —
+einer *Route* — und wählt selbst unter ihnen: nach Prioritätsstufe, dann nach
+Gewicht, und beim Fehlschlag weiter zum nächsten Deployment. Für diesen Client
+ist der Router ein dritter Provider, `router`, neben `academiccloud` und
+`openai`; das Gateway führt ihn in seinem eigenen `/api/v1/llm/provider` so.
+Es ist die serverseitige Form eines virtuellen Modells: ein Name, einmal
+eingerichtet, für jeden Client des Kontos derselbe.
+
+| Aufruf | Ergebnis |
+|---|---|
+| `api.chat(prompt, model="schnell", provider="router")` | `str` — `model` ist der Name einer Route, oder `provider/modell` direkt an einen Provider |
+| `api.respond(prompt, model="schnell", provider="router")` | `Answer` — der Rumpf folgt derselben Regel |
+| `api.models(provider="router")` | `list[Model]` — die Routen, die dieser Schlüssel nutzen kann, ohne Auslastung |
+| `api.routes()` | `list[Route]` — die Routen des Kontos und die aktiven globalen; gemerkt wie die Modellliste |
+| `api.create_route(route)` | `Route` — für das Konto gespeichert, wie das Gateway sie führt; braucht das Kontorecht `LLM_ROUTE_MANAGE` |
+| `api.replace_route(route, clear_cache=False)` | `Route` — die ganze Route unter ihrer `id` ersetzt; `clear_cache=True` verwirft auch ihre gemerkten Antworten |
+| `api.delete_route(route)` | `None` — `route` ist die `Route` oder ihre id |
+| `Route(name, deployments, description=None, enabled=True, max_attempts=None)` | eine anzulegende Route; `id`, `account_id`, `created_at` und `updated_at` gehören dem Gateway und gehen nie hinaus |
+| `Route` | `name`, `deployments`, `description`, `enabled`, `max_attempts`, `id`, `account_id` (`None` bei einer globalen Route), `created_at`, `updated_at`; `upstream` — die Modelle ihrer aktiven Deployments |
+| `Deployment(id, provider, model, tier=0, weight=1, enabled=True)` | ein Ziel: ein Modell bei einem Provider |
+| `Deployment` | `id`, `provider`, `model`, `tier`, `weight`, `enabled` |
+| `Route.from_response(body)` / `Deployment.from_response(body)` | der Wert aus dem JSON des Gateways; ein Feld in falscher Form löst einen Fehler aus, der das Feld nennt |
+| `route.as_request(clear_cache=False)` / `deployment.as_request()` | `dict` — in der Schreibweise des Gateways: `logicalModel`, `providerId`, `upstreamModel`, `priorityTier` |
+| `upstream_of(name, routes)` | `tuple[str, ...] \| None` — die Modelle, die ein Name erreicht, in der Reihenfolge des Gateways |
+| `ROUTER` | `"router"` |
+
+```python
+# async: BildungsAPI hat keine blockierende Fassade
+api = BildungsAPI.from_env(provider="router")
+
+await api.chat("Antworte nur mit OK.", model="openai/gpt-5.6-luna")    # "OK"
+api.last_model                       # "gpt-5.6-luna" -- das Modell, das antwortete
+
+route = await api.create_route(Route("schnell", [
+    Deployment("luna", "openai", "gpt-5.6-luna"),
+    Deployment("reserve", "openai", "gpt-5-nano", tier=1),
+], description="erst luna, nano, wenn luna scheitert"))
+await api.chat("Fasse zusammen: …", model="schnell")
+[r.name for r in await api.routes()]          # ["schnell", …globale Routen]
+await api.delete_route(route)
+```
+
+**Der Rumpf wird für die Modelle hinter dem Namen gebaut.** Der Router reicht
+einen Rumpf unverändert an das Deployment weiter, das er wählt — gemessen
+2026-10-01: `max_tokens` an eine Route aus `gpt-5.6-luna` kam als OpenAIs
+eigenes 400 zurück, *„Unsupported parameter: 'max_tokens' … Use
+'max_completion_tokens'"*. Darum lesen `chat` und `respond` zuerst die
+Routenliste und bauen den Rumpf für die Modelle hinter dem Namen;
+`build_body(model, messages, upstream=[…])` und
+`reasoning_for_responses(model, upstream=[…])` nehmen sie genauso.
+
+* `provider/modell` erreicht dieses Modell: `openai/gpt-5.6-luna` bekommt den
+  GPT-5-Rumpf.
+* Der Name einer Route erreicht die aktiven Deployments der Route, die gilt —
+  zuerst die aktive Route des Kontos, dann die aktive globale gleichen Namens.
+  Eine Route, die wie das Muster heißt, gewinnt vor dem Muster.
+* Die optionalen Teile — der Denk-Schalter für Qwen3, die Vorgabe für
+  `reasoning_effort` und `verbosity` — kommen nur hinein, wo **jedes** Modell
+  sie nimmt. Ein ausdrücklicher Wert, den eines ablehnt, löst `ValidationError`
+  aus, wie bei einem einzelnen Modell.
+* Eine Route, die die GPT-5- und o-Familien mit anderen mischt, wird
+  abgelehnt, bevor etwas hinausgeht: die einen brauchen `max_completion_tokens`
+  und keine Temperatur, die anderen nehmen `max_tokens`, und ob sie die neuere
+  Schreibweise nehmen, ist nicht gemessen.
+  `call("chat/completions", {...}, provider="router")` schickt einen eigenen
+  Rumpf.
+* Ein Name, den die Liste nicht kennt — oder eine Liste, die sich nicht lesen
+  lässt — überlässt den Rumpf dem Namen, wie bei jeder ID, und das Gateway
+  antwortet selbst: `400 No route configured for model '…'`.
+
+**`last_model` nennt das Modell, das geantwortet hat.** Über den Router ist
+das Feld `model` der Antwort die einzige Auskunft darüber, welches Deployment
+geantwortet hat — keine Kopfzeile sagt es —, also ist `last_model`
+`"gpt-5.6-luna"`, nicht der Name der Route. Anderswo bleibt es die gesendete
+ID.
+
+**Eine Route ist kein virtuelles Modell.** Der Router geht nach Stufe und
+Gewicht, nicht nach Auslastung; das `demand` der AcademicCloud nutzt er nicht.
+Dafür bleibt `virtual_models`, und das geht an jedem Gateway. Eine Gruppe aus
+Routen ist dort eine Ausweichkette, wie bei OpenAI.
+
+Gemessen am 2026-10-01 gegen Staging, über das Obige hinaus:
+
+* `weight` ist eine ganze Zahl über 0, relativ innerhalb seiner Stufe — 0 wird
+  abgelehnt, gleiche Gewichte teilen gleich.
+* Eine zweite Route gleichen Namens in einem Konto antwortet 409
+  (`ConflictError`), eine unbekannte id 404 ohne Körper (`NotFoundError`). Eine
+  Feldprüfung antwortet `{"<feld>": "<meldung>"}`, und der Fehler nennt das
+  Feld.
+* Eine Route, deren Deployments alle abgeschaltet sind, steht weiter in der
+  Liste und antwortet `503 No deployment could serve model '…' (no deployment
+  left)`.
+* `created_at` und `updated_at` kommen ohne Zeitzone; sie sind UTC.
+* Ein Tippfehler hinter einem Provider-Präfix — `openai/<Routenname>` — geht
+  an diesen Provider und kommt als `503 Model pricing unavailable` zurück, den
+  dieser Client nicht wiederholt.
+* `create_route` und `delete_route` werden nach einem Fehlschlag nicht
+  wiederholt, der ihre Arbeit schon getan haben kann; `replace_route` schon,
+  wie jede idempotente Anfrage.
+
+#### Der Antwort-Cache des Gateways
+
+Das Gateway beantwortet eine wortgleiche Wiederholung aus seinem Cache — bei
+den Providern wie beim Router, und `provider/modell` teilt sich den des
+Providers. Gemessen 2026-10-01: die Wiederholung brauchte 0,05 s statt 0,8 s
+und kam mit derselben `id`, demselben `created` und derselben `usage` zurück.
+Nichts kennzeichnet sie, weder eine Kopfzeile noch ein Feld. Eine wiederholte
+Frage bekommt dieselbe Antwort, was auch immer `temperature` sagt.
+
+| Aufruf | Ergebnis |
+|---|---|
+| `BildungsAPI(…, gateway_cache=True)` | die Vorgabe: eine Wiederholung darf aus dem Cache kommen |
+| `BildungsAPI(…, gateway_cache=False)` | jede durchgereichte Anfrage trägt `ignore-caching=true` — gemessen liest sie den Cache nicht und speichert die neue Antwort nicht |
+| `api.replace_route(route, clear_cache=True)` | verwirft, was das Gateway für diese Route gemerkt hat |
+
+Die Routenverwaltung kennt keinen Cache-Schalter, und dieser Client schickt
+dort keinen.
 
 ### Der Template-Modus — `BapiTemplates`
 

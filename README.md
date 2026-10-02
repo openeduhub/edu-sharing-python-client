@@ -940,12 +940,12 @@ at the router. The same question twice comes back with the same answer and
 the same id, and nothing marks it. `BildungsAPI(gateway_cache=False)` asks past
 the cache.
 
-**A route does not replace a virtual model.** A route sends one body to every
-model it holds, so it only bundles models of one kind — but it is changed in
-one place, for every application that uses its name. A virtual model
-(`virtual_models`, `model=[…]`) gives each model its own body, can follow the
-AcademicCloud's load, and needs no rights. At the router the two combine: a
-group may span providers.
+**A route is the standard way to bundle models.** It is changed in one place,
+for every application that uses its name. It sends one body to every model it
+holds, though, so it only bundles models of one kind. For what it cannot do,
+keep a virtual model (`virtual_models`, `model=[…]`): it gives each model its
+own body, can follow the AcademicCloud's load, and works at any gateway. At
+the router the two combine: a group may span providers.
 
 ```python
 # async: BildungsAPI has no blocking facade

@@ -288,10 +288,10 @@ vier durchgereichten Routen, die eine Datei nehmen (`audio/transcriptions`,
 `audio/translations`, `images/edits`, `files`). Einbettungen, Moderation und
 Bilder gibt es nur bei `provider="openai"`; das Bild steht in `.b64`, `.url`
 bleibt `None` (gemessen 21.09.2026; TRAPS 2.10, `.raw` in der Referenz).
-**Router** (`provider="router"`): `model` ist ein Routenname oder `provider/modell`; der
-Rumpf passt zu den Modellen dahinter (GPT-5 mit älteren gemischt: `ValidationError`),
-`last_model` nennt das antwortende Modell. Wortgleiches kommt ungekennzeichnet aus dem
-Gateway-Cache; `gateway_cache=False` umgeht ihn (TRAPS 2.17; [Beispiel 27](reference/examples/27_bapi_router.py)).
+**Router** (`provider="router"`): `model` ist ein Routenname oder `provider/modell`; der Rumpf
+passt zu den Modellen dahinter (GPT-5 mit älteren gemischt: `ValidationError`), `last_model` nennt
+das antwortende Modell. Wortgleiches kommt ungekennzeichnet aus dem Gateway-Cache; `gateway_cache=False`
+umgeht ihn (TRAPS 2.17; [Beispiel 27](reference/examples/27_bapi_router.py)). Bündeln zuerst mit einer Route; `model=[…]` für Modelle verschiedener Art, Auslastung oder Gateways ohne Router ([Beispiel 28](reference/examples/28_bapi_bundling.py)).
 
 ### 3.11 LLM-Gateway — Vorlagen (`BapiTemplates`)
 

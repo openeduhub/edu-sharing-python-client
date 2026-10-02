@@ -7,8 +7,9 @@ account right ``LLM_ROUTE_MANAGE``, and without it the example says so and
 skips that part. No repository is involved. Without a key it prints what it
 would have asked and stops.
 
-Since the gateway has a router there are two ways to bundle models, and they
-do not replace each other. Measured against staging on 2026-10-01:
+Since the gateway has a router there are two ways to bundle models. The route
+is the standard; the group covers what a route cannot. Measured against
+staging on 2026-10-01:
 
 1. **A group in the client** -- ``model=[...]`` or a name from
    ``virtual_models``. At the router it may span providers: here
@@ -22,10 +23,11 @@ do not replace each other. Measured against staging on 2026-10-01:
    before anything is sent. A route of one kind works -- and can be changed
    centrally, for every application that sends its name.
 
-Which when: a route for one name that many applications share and that is
-changed in one place; a group for models of different kinds, for the
-AcademicCloud's load (``provider="academiccloud"``), for any gateway, and
-without any right on the account.
+Which when: a route first -- one name that many applications share and that is
+changed in one place. A group only where a route cannot serve: models of
+different kinds, a choice by the AcademicCloud's load
+(``provider="academiccloud"``), a gateway without a router, or an application
+nobody creates a route for.
 """
 
 import asyncio

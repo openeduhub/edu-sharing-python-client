@@ -30,6 +30,15 @@ and in [`docs/audits/`](docs/audits/).
   versions: the team's question about abuse and cost touches the gateway's
   security and went to the b-api team separately. The guide's Python blocks
   are under the code guard like every other document's.
+- **A route is the standard way to bundle models.** README, REFERENCE, the
+  skill, TRAPS 2.17, example 28, the guide and the `virtual_models` docstring
+  said that a route and a virtual model "do not replace each other" and left
+  the choice open. They now lead with the route -- changed in one place, for
+  every application that sends its name -- and keep the virtual model for
+  what a route cannot do: models of different kinds, a choice by the
+  AcademicCloud's load, a gateway without a router. Nothing in the code
+  changes; the first of the three goes once the gateway fits the body to
+  each deployment.
 
 ## [0.3.6] — 2026-10-01
 

@@ -567,9 +567,11 @@ gesendet wird. Routen anlegen, ändern und löschen geht mit `create_route`,
 `replace_route` und `delete_route`; `gateway_cache=False` fragt am Cache
 vorbei.
 
-**Gemischte Modelle bündelt die Bibliothek selbst.** Eine Route ersetzt die
-Gruppen der Bibliothek (`virtual_models`) nicht: Am Router darf eine Gruppe
-`provider/modell` verschiedener Provider nennen, die Bibliothek versucht sie
+**Gebündelt wird zuerst mit einer Route; was sie nicht kann, bündelt die
+Bibliothek selbst.** Ihre Gruppen (`virtual_models`, `model=[…]`) bleiben für
+drei Fälle: Modelle verschiedener Art, die Wahl nach der Auslastung der
+AcademicCloud und Gateways ohne Router. Am Router darf eine Gruppe
+`provider/modell` verschiedener Provider nennen; die Bibliothek versucht sie
 in der geschriebenen Reihenfolge und baut für jedes Modell die passende
 Anfrage — auch für GPT-5 und gemma in einer Gruppe, was eine Route nicht kann:
 
@@ -578,11 +580,9 @@ text = await api.chat("Fasse zusammen: …",
                       model=["openai/gpt-5.6-luna", "academiccloud/gemma-4-31b-it"])
 ```
 
-Faustregel: eine Route, wo viele Anwendungen einen Namen teilen, der zentral
-geändert wird (Modelle einer Art); eine Gruppe in der Bibliothek, wo Modelle
-verschiedener Art zusammenkommen oder die Auslastung der AcademicCloud
-entscheiden soll. Das Beispiel
-[`28_bapi_bundling.py`](examples/28_bapi_bundling.py) zeigt beides.
+Der erste Fall entfällt, sobald die B-API die Anfrage je Modell anpasst
+(Empfehlung E1 im [Testbericht](audits/2026-10-01-bapi-router.md)). Das
+Beispiel [`28_bapi_bundling.py`](examples/28_bapi_bundling.py) zeigt beides.
 
 ## Noch offen
 

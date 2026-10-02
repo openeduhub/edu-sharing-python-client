@@ -278,7 +278,9 @@ stays `None` (measured 21.09.2026; TRAPS 2.10, `.raw` in the reference).
 with older models raises `ValidationError`, and `last_model` names the model
 that answered. A word-for-word repeat comes from the gateway's cache, unmarked;
 `gateway_cache=False` asks past it (TRAPS 2.17,
-[example 27](reference/examples/27_bapi_router.py)).
+[example 27](reference/examples/27_bapi_router.py)). To bundle models, prefer a
+route; `model=[…]` is for models of different kinds, the AcademicCloud's load,
+or a gateway without a router ([example 28](reference/examples/28_bapi_bundling.py)).
 
 ### 3.11 LLM gateway — templates (`BapiTemplates`)
 

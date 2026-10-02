@@ -950,13 +950,13 @@ Provider, nicht nur beim Router. Dieselbe Frage zweimal kommt mit derselben
 Antwort und derselben id zurück, und nichts kennzeichnet das.
 `BildungsAPI(gateway_cache=False)` fragt am Cache vorbei.
 
-**Eine Route ersetzt kein virtuelles Modell.** Eine Route schickt allen ihren
-Modellen denselben Rumpf, bündelt also nur Modelle einer Art — dafür wird sie
-an einer Stelle geändert, für jede Anwendung, die ihren Namen nutzt. Ein
-virtuelles Modell (`virtual_models`, `model=[…]`) gibt jedem Modell seinen
-eigenen Rumpf, kann der Auslastung der AcademicCloud folgen und braucht keine
-Rechte. Am Router lassen sich beide verbinden: eine Gruppe darf dort Provider
-mischen.
+**Modelle bündelt man zuerst mit einer Route.** Sie wird an einer Stelle
+geändert, für jede Anwendung, die ihren Namen nutzt. Sie schickt allerdings
+allen ihren Modellen denselben Rumpf, bündelt also nur Modelle einer Art. Für
+das, was sie nicht kann, bleibt das virtuelle Modell (`virtual_models`,
+`model=[…]`): es gibt jedem Modell seinen eigenen Rumpf, kann der Auslastung
+der AcademicCloud folgen und geht an jedem Gateway. Am Router lassen sich
+beide verbinden: eine Gruppe darf dort Provider mischen.
 
 ```python
 # async: BildungsAPI hat keine blockierende Fassade

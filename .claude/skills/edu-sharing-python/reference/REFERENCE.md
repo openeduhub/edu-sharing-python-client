@@ -1338,6 +1338,11 @@ ends at the last one, waiting as before.
 
 ### A virtual model — several ids under one name
 
+**At the b-api, look for a route first.** A route on the gateway is the
+standard way to bundle models of one kind — see *The router*. A virtual model
+is for what a route cannot do: models of different kinds, a choice by the
+AcademicCloud's load, and a gateway without a router.
+
 Only the AcademicCloud reports load, and it moves by the minute. Name two or
 three models that would all do, and the least loaded one answers.
 
@@ -1440,7 +1445,8 @@ The gateway bundles models of one provider or several under a name — a
 on to the next deployment when one fails. To this client the router is a third
 provider, `router`, beside `academiccloud` and `openai`; the gateway's own
 `/api/v1/llm/provider` lists it so. It is the server-side form of a virtual
-model: one name, configured once, the same for every client of the account.
+model — one name, configured once, the same for every client of the account —
+and the standard way to bundle models of one kind.
 
 | Call | Result |
 |---|---|
@@ -1509,8 +1515,10 @@ answer's `model` field is the only word on which deployment answered — no
 header says it — so `last_model` is `"gpt-5.6-luna"`, not the route's name.
 Elsewhere it stays the id that was sent.
 
-**A route is not a virtual model.** The two bundle models in different places
-and do not replace each other — see *A route or a virtual model?* below.
+**A route is the standard; a virtual model covers what it cannot.** A route
+bundles models of one kind. For models of different kinds, the AcademicCloud's
+load or a gateway without a router, keep a virtual model — see *A route or a
+virtual model?* below.
 
 Measured 2026-10-01 against staging, beyond the above:
 
@@ -1544,10 +1552,16 @@ each can do:
 | Needs | nothing | a route, from an admin or with the account right `LLM_ROUTE_MANAGE` |
 | Works at | any gateway | the b-api's router |
 
-So a route where many applications share one name that is changed in one
-place, for models of one kind. A virtual model where the models differ in kind,
-where the AcademicCloud's load should decide, and wherever nobody can create a
-route.
+**Start with a route.** It is changed in one place, for every application that
+sends its name — the reason the gateway has a router. Keep a virtual model only
+where a route cannot serve:
+
+* models of different kinds — GPT-5 with older models — because a route sends
+  them all one body;
+* a choice by the AcademicCloud's load, which the router does not use;
+* a gateway without a router, or an application nobody creates a route for.
+
+The first of these goes once the gateway fits the body to each deployment.
 
 At the router the two combine: a group there may name routes and
 `provider/model`, across providers.

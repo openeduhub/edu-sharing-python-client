@@ -1379,6 +1379,12 @@ schnell, und der Lauf endet beim letzten, der wie bisher wartet.
 
 ### Ein virtuelles Modell — mehrere IDs unter einem Namen
 
+**An der b-api zuerst nach einer Route sehen.** Eine Route auf dem Gateway ist
+der Standard, um Modelle einer Art zu bündeln — siehe *Der Router*. Ein
+virtuelles Modell ist für das, was eine Route nicht kann: Modelle
+verschiedener Art, die Wahl nach der Auslastung der AcademicCloud und Gateways
+ohne Router.
+
 Nur die AcademicCloud meldet Auslastung, und die ändert sich im Minutentakt.
 Nennen Sie zwei oder drei Modelle, die alle taugen würden, und das am
 wenigsten ausgelastete antwortet.
@@ -1484,8 +1490,9 @@ einer *Route* — und wählt selbst unter ihnen: nach Prioritätsstufe, dann nac
 Gewicht, und beim Fehlschlag weiter zum nächsten Deployment. Für diesen Client
 ist der Router ein dritter Provider, `router`, neben `academiccloud` und
 `openai`; das Gateway führt ihn in seinem eigenen `/api/v1/llm/provider` so.
-Es ist die serverseitige Form eines virtuellen Modells: ein Name, einmal
-eingerichtet, für jeden Client des Kontos derselbe.
+Es ist die serverseitige Form eines virtuellen Modells — ein Name, einmal
+eingerichtet, für jeden Client des Kontos derselbe — und der Standard, um
+Modelle einer Art zu bündeln.
 
 | Aufruf | Ergebnis |
 |---|---|
@@ -1558,9 +1565,10 @@ geantwortet hat — keine Kopfzeile sagt es —, also ist `last_model`
 `"gpt-5.6-luna"`, nicht der Name der Route. Anderswo bleibt es die gesendete
 ID.
 
-**Eine Route ist kein virtuelles Modell.** Die beiden bündeln Modelle an
-verschiedenen Stellen und ersetzen einander nicht — siehe *Route oder
-virtuelles Modell?* weiter unten.
+**Die Route ist der Standard; das virtuelle Modell deckt ab, was sie nicht
+kann.** Eine Route bündelt Modelle einer Art. Für Modelle verschiedener Art,
+die Auslastung der AcademicCloud oder ein Gateway ohne Router bleibt das
+virtuelle Modell — siehe *Route oder virtuelles Modell?* weiter unten.
 
 Gemessen am 2026-10-01 gegen Staging, über das Obige hinaus:
 
@@ -1597,10 +1605,17 @@ was jedes kann:
 | Braucht | nichts | eine Route, von einem Admin oder mit dem Kontorecht `LLM_ROUTE_MANAGE` |
 | Geht an | jedem Gateway | dem Router der b-api |
 
-Also eine Route, wo viele Anwendungen einen Namen teilen, der an einer Stelle
-geändert wird, für Modelle einer Art. Ein virtuelles Modell, wo die Modelle
-verschiedener Art sind, wo die Auslastung der AcademicCloud entscheiden soll,
-und überall, wo niemand eine Route anlegen kann.
+**Zuerst eine Route.** Sie wird an einer Stelle geändert, für jede Anwendung,
+die ihren Namen schickt — dafür hat das Gateway einen Router. Ein virtuelles
+Modell nur dort, wo eine Route nicht dienen kann:
+
+* Modelle verschiedener Art — GPT-5 mit älteren Modellen —, weil eine Route
+  allen denselben Rumpf schickt;
+* die Wahl nach der Auslastung der AcademicCloud, die der Router nicht nutzt;
+* ein Gateway ohne Router, oder eine Anwendung, für die niemand eine Route
+  anlegt.
+
+Der erste Fall entfällt, sobald das Gateway den Rumpf je Deployment anpasst.
 
 Am Router lassen sich beide verbinden: eine Gruppe darf dort Routen und
 `provider/modell` nennen, über Provider hinweg.

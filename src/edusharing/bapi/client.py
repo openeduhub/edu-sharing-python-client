@@ -144,6 +144,9 @@ class BildungsAPI:
         virtual_models: names for groups of models, e.g.
             ``{"schnell": ["qwen3.6-35b-a3b", "gemma-4-31b-it"]}``.
             ``chat(model="schnell")`` then takes the least loaded of them.
+            At the b-api a route on the gateway is the standard for models of
+            one kind; a group here is for the rest -- models of different
+            kinds, the AcademicCloud's load, a gateway without a router.
         gateway_cache: ``False`` asks past the gateway's answer cache on every
             forwarded request -- it neither reads a cached answer nor stores
             the new one. Left on, a word-for-word repeat gets the first answer

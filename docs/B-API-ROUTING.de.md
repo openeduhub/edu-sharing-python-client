@@ -40,14 +40,24 @@ getestet am 1. Oktober 2026 gegen Staging (`https://b-api.staging.openeduhub.net
 
 ## 1. So funktioniert das Routing
 
+Eine Anwendung schickt den Namen einer Route an den Router. Fällt das erste
+Modell aus, fragt der Router das nächste — die Anwendung muss dafür nichts
+tun. Welches Modell geantwortet hat, steht im Feld `model` der Antwort.
+
 ```mermaid
-flowchart LR
-    A1["Anwendung A<br/>model: chat-standard"] --> R
-    A2["Anwendung B<br/>model: academiccloud/<br/>gemma-4-31b-it"] --> R
-    R["Router der B-API<br/>/api/v1/llm/router/…"]
-    R -- "Route" --> RT["Route chat-standard<br/>Prio 0: gpt-5.6-luna, Gewicht 3<br/>Prio 0: gpt-5-mini, Gewicht 1<br/>Prio 1: gpt-5-nano"]
-    RT --> O["Provider openai"]
-    R -- "Muster" --> AC["Provider academiccloud"]
+%%{init: {"sequence": {"mirrorActors": false, "width": 190}}}%%
+sequenceDiagram
+    participant App as Anwendung
+    participant R as Router der B-API
+    participant L as gpt-5.6-luna (Priorität 0)
+    participant N as gpt-5-nano (Priorität 1)
+    App->>R: POST /api/v1/llm/router/chat/completions<br/>model: chat-standard
+    R->>L: Anfrage
+    L--xR: Fehler oder keine Antwort
+    Note over R: merkt sich den Ausfall<br/>und weicht aus
+    R->>N: dieselbe Anfrage
+    N-->>R: Antwort
+    R-->>App: Antwort mit model: gpt-5-nano
 ```
 
 ### Begriffe

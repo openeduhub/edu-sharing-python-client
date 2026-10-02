@@ -45,6 +45,7 @@ from edusharing.bapi import BapiTemplates, BildungsAPI
 from edusharing.childobjects import ChildObjects
 from edusharing.collections import Collections
 from edusharing.content import NodeContent
+from edusharing.extraction import TextExtraction
 from edusharing.flows import Flows
 from edusharing.metadata import MetadataCatalog
 from edusharing.metadata_agent import MetadataAgent
@@ -87,9 +88,14 @@ _BLOCK = re.compile(r"```(?:python|py)\n(.*?)```", re.S)
 #: README fuer eine Inhaltsart und nicht fuer ein Kindobjekt. ``api`` und
 #: ``agent`` seit dem 11.09.2026 -- gemessen stehen sie in jedem Block fuer
 #: ``BildungsAPI`` und ``MetadataAgent``; ``extraction`` nicht, es fehlt hier.
+#: ``llm``, ``service`` und ``dienst`` seit dem 02.10.2026: so heissen
+#: ``BildungsAPI`` und ``TextExtraction`` in README, REFERENCE und Skill, in
+#: jedem Block eindeutig -- bis dahin blieben ihre Aufrufe in 18 Bloecken
+#: ungeprueft.
 _WURZELN_ASYNC = {"repo": AsyncRepository, "node": Node, "knoten": Node,
                   "templates": BapiTemplates, "api": BildungsAPI,
-                  "agent": MetadataAgent}
+                  "llm": BildungsAPI, "agent": MetadataAgent,
+                  "service": TextExtraction, "dienst": TextExtraction}
 
 #: Synchron gilt ``Repository`` selbst -- die Fassade ist ausgeschrieben und
 #: damit genau pruefbar (``resolve`` gibt es dort und asynchron nicht).
@@ -100,7 +106,8 @@ _WURZELN_ASYNC = {"repo": AsyncRepository, "node": Node, "knoten": Node,
 #: (Messung 09.09.2026).
 _WURZELN_SYNC = {"repo": Repository, "node": Node, "knoten": Node,
                  "templates": BapiTemplates, "api": BildungsAPI,
-                 "agent": MetadataAgent}
+                 "llm": BildungsAPI, "agent": MetadataAgent,
+                 "service": TextExtraction, "dienst": TextExtraction}
 
 #: Wo ein Attribut selbst wieder eine Oberflaeche ist.
 _WEITER = {

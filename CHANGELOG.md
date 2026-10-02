@@ -40,6 +40,18 @@ and in [`docs/audits/`](docs/audits/).
   changes; the first of the three goes once the gateway fits the body to
   each deployment.
 
+### Tests
+
+- **The code guard now checks the gateway's and the extraction service's
+  calls.** It checks a call only where it knows the name in front of it, and
+  the documents name `BildungsAPI` `llm` (eight README blocks) and
+  `TextExtraction` `service` or `dienst` (ten blocks in README, REFERENCE and
+  the skill): 18 blocks parsed, and not one call on those names was checked
+  for existence or, in `test_docs_signatures`, for binding. The three names
+  are mapped now, each measured to mean one class in every block. No
+  document needed a fix; a misspelt method or keyword under each name was
+  seen to fail the guard, and to pass again with the names unmapped.
+
 ## [0.3.6] — 2026-10-01
 
 **What was proven, and what was not.** `ruff check .` clean, `mypy` clean over

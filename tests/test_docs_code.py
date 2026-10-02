@@ -63,6 +63,7 @@ DOKUMENTE = [
     "docs/FLOWS.md", "docs/FLOWS.de.md",
     "docs/REFERENCE.md", "docs/REFERENCE.de.md",
     "docs/ARCHITECTURE.md", "docs/ARCHITECTURE.de.md",
+    "docs/B-API-ROUTING.de.md",
     ".claude/skills/edu-sharing-python/SKILL.md",
     ".claude/skills/edu-sharing-python/SKILL.de.md",
     ".claude/skills/edu-sharing-python/reference/TRAPS.md",

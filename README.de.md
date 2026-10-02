@@ -971,6 +971,11 @@ Zum Ausprobieren: `python docs/examples/27_bapi_router.py`, und
 `28_bapi_bundling.py` für Gruppe und Route nebeneinander — es legt eine eigene
 Route an und löscht sie wieder.
 
+Wer das Gateway ohne Python nutzt: das Routing selbst — Routen, das Muster
+`provider/modell`, der Cache, mit Beispielaufrufen und ihren Antworten —
+beschreibt [docs/B-API-ROUTING.de.md](docs/B-API-ROUTING.de.md); gemessen ist
+es im [Testbericht vom 01.10.2026](docs/audits/2026-10-01-bapi-router.md).
+
 ### Der Template-Modus — Prompts, die auf dem Server liegen
 
 Dasselbe Gateway läuft auf eine zweite Art. Dort ist der Prompt eine

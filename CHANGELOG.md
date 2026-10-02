@@ -20,7 +20,16 @@ and in [`docs/audits/`](docs/audits/).
 
 ## [Unreleased]
 
-Nothing yet.
+### Documentation
+
+- **The b-api's routing, for a team without Python.**
+  [`docs/B-API-ROUTING.de.md`](docs/B-API-ROUTING.de.md) explains routes, the
+  `provider/model` pattern and the cache, with example calls and their
+  answers; [`docs/audits/2026-10-01-bapi-router.md`](docs/audits/2026-10-01-bapi-router.md)
+  is the test report it rests on. Both are in German and both are public
+  versions: the team's question about abuse and cost touches the gateway's
+  security and went to the b-api team separately. The guide's Python blocks
+  are under the code guard like every other document's.
 
 ## [0.3.6] — 2026-10-01
 

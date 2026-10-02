@@ -960,6 +960,12 @@ Try it: `python docs/examples/27_bapi_router.py`, and `28_bapi_bundling.py`
 for a group and a route side by side — it creates a route of its own and
 deletes it again.
 
+For a team that uses the gateway without Python, the routing itself — routes,
+the `provider/model` pattern, the cache, with example calls and their answers
+— is described in [docs/B-API-ROUTING.de.md](docs/B-API-ROUTING.de.md)
+(German), and measured in the
+[test report of 2026-10-01](docs/audits/2026-10-01-bapi-router.md).
+
 ### The template mode — prompts kept on the server
 
 The same gateway runs a second way. There the prompt is a configuration in the

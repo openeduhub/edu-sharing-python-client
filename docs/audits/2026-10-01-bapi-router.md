@@ -101,9 +101,11 @@ festlegen und an beiden Stellen gleich beschreiben.
 Gewichte, z. B. 1 und 1. Die Spec nennt `minimum: 0` — **Spec ≠ Server**.
 
 **B4 — Gecachte Antworten sind nicht zu erkennen.** Keine Kopfzeile kennzeichnet
-einen Treffer (es kommen nur `content-type`, `content-security-policy`,
-`content-encoding`), und `id`, `created` und `usage` sind die der ersten
-Antwort. Ein Client kann frisch und gecacht nicht unterscheiden; ob ein
+einen Treffer: Ein Treffer trägt dieselben 14 Kopfzeilen wie eine neue Antwort,
+darunter `cache-control: no-cache, no-store, must-revalidate`, das sich an
+Browser und Zwischenspeicher richtet (nachgemessen am 2026-10-02; die erste
+Fassung nannte hier nur drei Kopfzeilen). `id`, `created` und `usage` sind die
+der ersten Antwort. Ein Client kann frisch und gecacht nicht unterscheiden; ob ein
 Treffer Kontingent oder Kosten zählt, ist von außen nicht zu sehen. Der Cache
 greift **auch auf den Provider-Routen** (`/api/v1/llm/openai/…`), nicht nur
 beim Router — wer zweimal dasselbe fragt, bekommt dieselbe Antwort, egal mit

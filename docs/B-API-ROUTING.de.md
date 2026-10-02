@@ -192,9 +192,12 @@ flowchart LR
     H -- nein --> P3["neu erzeugen<br/>und speichern"]
 ```
 
-- Eine **wortgleiche** Anfrage bekommt die gespeicherte Antwort zurück — in
-  Millisekunden, mit derselben `id` und derselben Token-Zählung, und **nichts
-  kennzeichnet sie**.
+- Eine **wortgleiche** Anfrage bekommt die gespeicherte Antwort zurück —
+  schneller (gemessen 0,05–0,6 s statt 1,4–2,9 s), mit derselben `id`,
+  demselben `created` und derselben Token-Zählung, und **nichts kennzeichnet
+  sie**: Die Kopfzeilen sind dieselben wie bei einer neuen Antwort. Auch
+  `cache-control: no-cache, no-store` steht auf jeder Antwort — es richtet sich
+  an Browser und Zwischenspeicher, nicht an den Cache der B-API.
 - Das gilt für Routen **und** für die direkten Provider-Aufrufe
   (`/api/v1/llm/openai/…`).
 - Jede Route hat einen **eigenen** Cache; das Muster `provider/modell` nutzt den

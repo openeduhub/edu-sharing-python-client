@@ -22,16 +22,18 @@ and in [`docs/audits/`](docs/audits/).
 
 ### Documentation
 
-- **The b-api's routing, for a team without Python.**
-  [`docs/B-API-ROUTING.de.md`](docs/B-API-ROUTING.de.md) explains routes, the
-  `provider/model` pattern and the cache, with example calls and their
-  answers; [`docs/audits/2026-10-01-bapi-router.md`](docs/audits/2026-10-01-bapi-router.md)
-  is the test report it rests on. Both are in German and both are public
-  versions: the team's question about abuse and cost touches the gateway's
-  security and went to the b-api team separately. The guide's Python blocks
-  are under the code guard like every other document's.
+- **The b-api's routing, for the team.**
+  [`docs/B-API-ROUTING.de.md`](docs/B-API-ROUTING.de.md) is about the gateway
+  alone, in German: how routes, priorities, weights and the cache work, with
+  five diagrams; global and own routes in the gateway's UI and through its
+  API, with example calls and their answers; what to watch when creating and
+  using a route; how to move applications over; the test results of
+  2026-10-01; and the team's questions answered.
+  [`docs/audits/2026-10-01-bapi-router.md`](docs/audits/2026-10-01-bapi-router.md)
+  keeps the single measurements. Both are public versions: what touches the
+  gateway's security beyond that went to the b-api team separately.
 - **A route is the standard way to bundle models.** README, REFERENCE, the
-  skill, TRAPS 2.17, example 28, the guide and the `virtual_models` docstring
+  skill, TRAPS 2.17, example 28 and the `virtual_models` docstring
   said that a route and a virtual model "do not replace each other" and left
   the choice open. They now lead with the route -- changed in one place, for
   every application that sends its name -- and keep the virtual model for

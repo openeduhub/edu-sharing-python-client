@@ -73,9 +73,7 @@ class Profile:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.mediacenter_profile_extension import (
-            MediacenterProfileExtension,
-        )
+        from ..models.mediacenter_profile_extension import MediacenterProfileExtension
         from ..models.profile_custom_attributes import ProfileCustomAttributes
 
         d = dict(src_dict)

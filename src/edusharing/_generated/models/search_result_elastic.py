@@ -86,9 +86,7 @@ class SearchResultElastic:
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         from ..models.facet import Facet
         from ..models.pagination import Pagination
-        from ..models.search_result_elastic_nodes_item import (
-            SearchResultElasticNodesItem,
-        )
+        from ..models.search_result_elastic_nodes_item import SearchResultElasticNodesItem
         from ..models.suggest import Suggest
 
         d = dict(src_dict)

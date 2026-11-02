@@ -29,9 +29,7 @@ class StartJobBody:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.start_job_body_additional_property import (
-            StartJobBodyAdditionalProperty,
-        )
+        from ..models.start_job_body_additional_property import StartJobBodyAdditionalProperty
 
         d = dict(src_dict)
         start_job_body = cls()

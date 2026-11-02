@@ -56,9 +56,7 @@ class CreateSuggestionRequestDTO:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.create_suggestion_request_dto_value import (
-            CreateSuggestionRequestDTOValue,
-        )
+        from ..models.create_suggestion_request_dto_value import CreateSuggestionRequestDTOValue
 
         d = dict(src_dict)
         property_id = d.pop("propertyId")

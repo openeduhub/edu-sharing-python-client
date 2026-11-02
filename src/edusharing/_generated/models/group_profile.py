@@ -64,9 +64,7 @@ class GroupProfile:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.group_profile_custom_attributes import (
-            GroupProfileCustomAttributes,
-        )
+        from ..models.group_profile_custom_attributes import GroupProfileCustomAttributes
 
         d = dict(src_dict)
         display_name = d.pop("displayName", UNSET)

@@ -154,9 +154,7 @@ class FormDataBodyPart:
         from ..models.form_data_body_part_parameterized_headers import (
             FormDataBodyPartParameterizedHeaders,
         )
-        from ..models.form_data_content_disposition import (
-            FormDataContentDisposition,
-        )
+        from ..models.form_data_content_disposition import FormDataContentDisposition
         from ..models.media_type import MediaType
         from ..models.message_body_workers import MessageBodyWorkers
         from ..models.multi_part import MultiPart

@@ -41,9 +41,7 @@ class ChildrenMetadata:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.children_metadata_properties import (
-            ChildrenMetadataProperties,
-        )
+        from ..models.children_metadata_properties import ChildrenMetadataProperties
 
         d = dict(src_dict)
         _properties = d.pop("properties", UNSET)

@@ -73,9 +73,7 @@ class JobQueueEntryTtl:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.job_queue_entry_ttl_units_item import (
-            JobQueueEntryTtlUnitsItem,
-        )
+        from ..models.job_queue_entry_ttl_units_item import JobQueueEntryTtlUnitsItem
 
         d = dict(src_dict)
         seconds = d.pop("seconds", UNSET)

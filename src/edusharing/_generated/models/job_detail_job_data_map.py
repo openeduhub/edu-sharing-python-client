@@ -76,9 +76,7 @@ class JobDetailJobDataMap:
         from ..models.job_detail_job_data_map_additional_property import (
             JobDetailJobDataMapAdditionalProperty,
         )
-        from ..models.job_detail_job_data_map_wrapped_map import (
-            JobDetailJobDataMapWrappedMap,
-        )
+        from ..models.job_detail_job_data_map_wrapped_map import JobDetailJobDataMapWrappedMap
 
         d = dict(src_dict)
         dirty = d.pop("dirty", UNSET)

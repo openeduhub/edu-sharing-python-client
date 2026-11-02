@@ -53,9 +53,7 @@ class SubmissionFileRequest:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.submission_file_request_properties import (
-            SubmissionFileRequestProperties,
-        )
+        from ..models.submission_file_request_properties import SubmissionFileRequestProperties
 
         d = dict(src_dict)
         properties = SubmissionFileRequestProperties.from_dict(d.pop("properties"))

@@ -136,9 +136,7 @@ class PrimaryLogin:
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         from ..models.lti_session import LTISession
         from ..models.o_auth_entry import OAuthEntry
-        from ..models.primary_login_remote_authentications import (
-            PrimaryLoginRemoteAuthentications,
-        )
+        from ..models.primary_login_remote_authentications import PrimaryLoginRemoteAuthentications
 
         d = dict(src_dict)
         session_timeout = d.pop("sessionTimeout")

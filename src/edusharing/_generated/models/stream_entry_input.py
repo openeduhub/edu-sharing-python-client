@@ -72,9 +72,7 @@ class StreamEntryInput:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.stream_entry_input_properties import (
-            StreamEntryInputProperties,
-        )
+        from ..models.stream_entry_input_properties import StreamEntryInputProperties
 
         d = dict(src_dict)
         id = d.pop("id", UNSET)

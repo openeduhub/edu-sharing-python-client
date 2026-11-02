@@ -29,9 +29,7 @@ class SearchFacetArgs:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.search_facet_args_additional_property import (
-            SearchFacetArgsAdditionalProperty,
-        )
+        from ..models.search_facet_args_additional_property import SearchFacetArgsAdditionalProperty
 
         d = dict(src_dict)
         search_facet_args = cls()

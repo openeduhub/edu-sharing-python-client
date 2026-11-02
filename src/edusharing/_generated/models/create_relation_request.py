@@ -71,9 +71,7 @@ class CreateRelationRequest:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.create_relation_request_metadata import (
-            CreateRelationRequestMetadata,
-        )
+        from ..models.create_relation_request_metadata import CreateRelationRequestMetadata
 
         d = dict(src_dict)
         from_node = d.pop("fromNode")

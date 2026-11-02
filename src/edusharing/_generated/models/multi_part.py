@@ -120,9 +120,7 @@ class MultiPart:
         from ..models.message_body_workers import MessageBodyWorkers
         from ..models.multi_part_entity import MultiPartEntity
         from ..models.multi_part_headers import MultiPartHeaders
-        from ..models.multi_part_parameterized_headers import (
-            MultiPartParameterizedHeaders,
-        )
+        from ..models.multi_part_parameterized_headers import MultiPartParameterizedHeaders
         from ..models.providers import Providers
 
         d = dict(src_dict)

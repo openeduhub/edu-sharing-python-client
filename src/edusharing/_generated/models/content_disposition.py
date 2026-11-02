@@ -83,9 +83,7 @@ class ContentDisposition:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.content_disposition_parameters import (
-            ContentDispositionParameters,
-        )
+        from ..models.content_disposition_parameters import ContentDispositionParameters
 
         d = dict(src_dict)
         type_ = d.pop("type", UNSET)

@@ -123,9 +123,7 @@ class ScopeLogin:
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         from ..models.lti_session import LTISession
-        from ..models.scope_login_remote_authentications import (
-            ScopeLoginRemoteAuthentications,
-        )
+        from ..models.scope_login_remote_authentications import ScopeLoginRemoteAuthentications
 
         d = dict(src_dict)
         session_timeout = d.pop("sessionTimeout")

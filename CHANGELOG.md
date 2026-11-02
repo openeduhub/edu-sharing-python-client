@@ -20,6 +20,26 @@ and in [`docs/audits/`](docs/audits/).
 
 ## [Unreleased]
 
+### Security
+
+- **The lockfile takes certifi 2026.10.23.** 2026.7.22 carries PYSEC-2026-4320,
+  and from 2026-11-01 the dependency audit failed every CI run on it -- the
+  seven Dependabot pull requests of that day included, whatever they changed.
+  An install of the library resolves certifi itself; the lockfile only holds
+  back the development environment and CI.
+
+### Continuous integration
+
+- **The CodeQL action moves as one.** Dependabot raised `codeql-action/init`
+  and `codeql-action/analyze` in two pull requests, and each failed on its own:
+  "Loaded a configuration file for version '4.38.1', but running version
+  '4.39.1'". Both are at 4.39.1 now, and a Dependabot group keeps every
+  `github/codeql-action` step in one pull request from here on.
+- **Tooling raised**: `actions/setup-python` 7.1.0, ruff 0.17.3, mypy 2.4.1,
+  pytest 9.2.0, pytest-asyncio 1.4.1. ruff 0.17 joins import lines it used to
+  wrap, so the generated layer is regenerated with it -- 31 files, layout
+  only; without that the `generate` job fails.
+
 ### Documentation
 
 - **The b-api's routing, for the team.**

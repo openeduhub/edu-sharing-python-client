@@ -71,9 +71,7 @@ class JobDataMap:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.job_data_map_additional_property import (
-            JobDataMapAdditionalProperty,
-        )
+        from ..models.job_data_map_additional_property import JobDataMapAdditionalProperty
         from ..models.job_data_map_wrapped_map import JobDataMapWrappedMap
 
         d = dict(src_dict)

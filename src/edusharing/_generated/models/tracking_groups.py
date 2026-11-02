@@ -29,9 +29,7 @@ class TrackingGroups:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.tracking_groups_additional_property import (
-            TrackingGroupsAdditionalProperty,
-        )
+        from ..models.tracking_groups_additional_property import TrackingGroupsAdditionalProperty
 
         d = dict(src_dict)
         tracking_groups = cls()

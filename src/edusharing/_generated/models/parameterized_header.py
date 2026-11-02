@@ -46,9 +46,7 @@ class ParameterizedHeader:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.parameterized_header_parameters import (
-            ParameterizedHeaderParameters,
-        )
+        from ..models.parameterized_header_parameters import ParameterizedHeaderParameters
 
         d = dict(src_dict)
         value = d.pop("value", UNSET)

@@ -111,9 +111,7 @@ class SuggestionResponseDTO:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.suggestion_response_dto_value import (
-            SuggestionResponseDTOValue,
-        )
+        from ..models.suggestion_response_dto_value import SuggestionResponseDTOValue
         from ..models.user_simple import UserSimple
 
         d = dict(src_dict)

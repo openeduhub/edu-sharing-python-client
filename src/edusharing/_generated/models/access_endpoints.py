@@ -29,9 +29,7 @@ class AccessEndpoints:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.access_endpoints_additional_property import (
-            AccessEndpointsAdditionalProperty,
-        )
+        from ..models.access_endpoints_additional_property import AccessEndpointsAdditionalProperty
 
         d = dict(src_dict)
         access_endpoints = cls()

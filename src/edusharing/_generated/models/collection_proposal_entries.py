@@ -52,9 +52,7 @@ class CollectionProposalEntries:
 
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
-        from ..models.node_collection_proposal_count import (
-            NodeCollectionProposalCount,
-        )
+        from ..models.node_collection_proposal_count import NodeCollectionProposalCount
         from ..models.pagination import Pagination
 
         d = dict(src_dict)

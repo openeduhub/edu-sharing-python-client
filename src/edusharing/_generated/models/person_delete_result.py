@@ -95,12 +95,8 @@ class PersonDeleteResult:
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         from ..models.collection_counts import CollectionCounts
-        from ..models.person_delete_result_home_folder import (
-            PersonDeleteResultHomeFolder,
-        )
-        from ..models.person_delete_result_shared_folders import (
-            PersonDeleteResultSharedFolders,
-        )
+        from ..models.person_delete_result_home_folder import PersonDeleteResultHomeFolder
+        from ..models.person_delete_result_shared_folders import PersonDeleteResultSharedFolders
 
         d = dict(src_dict)
         authority_name = d.pop("authorityName", UNSET)

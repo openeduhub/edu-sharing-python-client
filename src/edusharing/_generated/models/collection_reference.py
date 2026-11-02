@@ -316,12 +316,8 @@ class CollectionReference:
     @classmethod
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         from ..models.collection import Collection
-        from ..models.collection_reference_properties import (
-            CollectionReferenceProperties,
-        )
-        from ..models.collection_reference_relations import (
-            CollectionReferenceRelations,
-        )
+        from ..models.collection_reference_properties import CollectionReferenceProperties
+        from ..models.collection_reference_relations import CollectionReferenceRelations
         from ..models.content import Content
         from ..models.contributor import Contributor
         from ..models.license_ import License

@@ -105,9 +105,7 @@ class BodyPart:
     def from_dict(cls, src_dict: Mapping[str, Any]) -> Self:
         from ..models.body_part_entity import BodyPartEntity
         from ..models.body_part_headers import BodyPartHeaders
-        from ..models.body_part_parameterized_headers import (
-            BodyPartParameterizedHeaders,
-        )
+        from ..models.body_part_parameterized_headers import BodyPartParameterizedHeaders
         from ..models.content_disposition import ContentDisposition
         from ..models.media_type import MediaType
         from ..models.message_body_workers import MessageBodyWorkers

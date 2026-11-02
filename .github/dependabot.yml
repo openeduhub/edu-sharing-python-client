@@ -14,6 +14,14 @@ updates:
       interval: "monthly"
     commit-message:
       prefix: "chore"
+    # init and analyze of the CodeQL action must run the same version. As two
+    # pull requests, each one failed on its own (measured 2026-11-01: "Loaded a
+    # configuration file for version '4.38.1', but running version '4.39.1'")
+    # and neither could be merged first. One group, one pull request.
+    groups:
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
 
   # Covers `pyproject.toml` and `uv.lock` together. That is the point: CI
   # installs with `--locked`, so a bump without a new lockfile would not be
